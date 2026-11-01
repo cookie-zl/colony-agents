@@ -14,10 +14,12 @@
 #
 # 下面几条是常用写法的示例，去掉注释即可生效。
 
-# 1) 给内置 llm 行换默认模型
-# - id: llm
+# 1) 改默认模型：行 id 是 agent-default-model，不是 llm
+#    （config 是整块替换，写一半会把另一半冲掉，provider 与 model 必须一起给）
+# - id: agent-default-model
 #   config:
-#     defaultModel: deepseek-chat
+#     provider: deepseek-official
+#     model: deepseek-flash
 
 # 2) 关掉社区插件市场（等价于运行时 DSH_MARKETPLACE=off，但写死在这里）
 # - id: dsh-plugin
@@ -30,4 +32,27 @@
 #       config:
 #         greeting: '你好'
 
-[]
+# ---------------------------------------------------------------------------
+# 生效中的覆盖：默认模型指向 dsh-our-free-model（免费车道，不需要 API Key）
+# ---------------------------------------------------------------------------
+#
+# 为什么必须在这里写、而不是在 UI 里选：
+#   容器用 DSH_PROFILE_SEED=refresh，每次启动都会用镜像里的 profile 覆盖数据卷，
+#   UI 里切模型写回的 cordis.patch.yml 会在下次重启时被冲掉。
+#   想让选择稳定存活，就改这个文件，然后重新构建镜像。
+#
+# provider = 插件注册的路由 id：
+#   our-free-model          免费车道主线（可用模型）
+#   our-free-model-region   被地区策略挡住的那批，单独隔离
+# model    = 上游模型 id，可用值见 Web 界面「设置 → Our Free Model → 模型清单」，
+#            或 GET /api/our-free-model/summary 的 catalog[].id
+- id: agent-default-model
+  config:
+    provider: our-free-model
+    model: kilo-auto/free
+
+# 示例：换成指定模型（把上面那行替换掉）
+# - id: agent-default-model
+#   config:
+#     provider: our-free-model
+#     model: nvidia/nemotron-3-ultra-550b-a55b:free

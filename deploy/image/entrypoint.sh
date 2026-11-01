@@ -89,7 +89,8 @@ echo "dsh: ${BIND_IP}:${DSH_PORT} seed=${DSH_PROFILE_SEED} marketplace=${DSH_MAR
      "public-url=${DSH_PUBLIC_URL:-<none>} trusted-host=${DSH_TRUSTED_HOST:-<none>}" >&2
 
 if [ -z "${DEEPSEEK_API_KEY:-}" ]; then
-  echo "dsh: 警告：DEEPSEEK_API_KEY 为空，UI 能打开但发起对话会缺模型凭证（可在 Web 的 Settings 里补）" >&2
+  echo "dsh: 提示：DEEPSEEK_API_KEY 为空。默认模型若走 dsh-our-free-model 免费车道则无需 Key；" \
+       "切回官方模型（provider=deepseek-official）前必须提供，否则对话会报缺凭证。" >&2
 fi
 
 exec dsh "$@"

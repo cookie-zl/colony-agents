@@ -13,5 +13,11 @@
 # 生产环境若不想放开「用户自助装插件」，用 DSH_MARKETPLACE=off 关掉它（镜像里仍然装着，只是不加载）。
 dsh-plugin@2.2.7
 
+# 免费模型车道：免 Key 直连上游网关（opencode.ai / kilo.ai），
+# 装上后模型选择器多出「Our Free Model」分组，另带一个 OpenAI 兼容本地转发端口。
+# 注意：npm 上 2.1.0 已被作者标记 deprecated（迁移到未发布的 dsh-fish），
+# 但代码可用、继任者还没发布，所以仍是当前唯一可选版本。详见 docs/03-社区插件.md。
+dsh-our-free-model@2.1.0
+
 # 自研插件不写在这里：它们的 tarball 由 Dockerfile 打包后自动安装，
 # 版本由 plugins/<name>/package.json 决定。

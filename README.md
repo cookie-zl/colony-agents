@@ -34,7 +34,7 @@ dsh 本体不作为源码 fork 进来，而是当作**上游 npm 依赖锁版本
 git clone <本仓库> && cd my-dsh
 
 # 1) 本机跑起来（需要 Docker）
-cp deploy/compose/.env.example deploy/compose/.env   # 填 DEEPSEEK_API_KEY
+cp deploy/compose/.env.example deploy/compose/.env   # DEEPSEEK_API_KEY 可留空，默认走免费模型车道
 make up            # → http://dsh.localhost:8080/
 
 # 2) 改插件：改完一条命令重建并替换容器，约 10 秒
@@ -59,6 +59,7 @@ make image         # 单条 docker build，插件在镜像里自动打包安装
 | dsh 本体 | 构建参数 `DSH_VERSION` | `0.2.1-rc.5` |
 | 社区插件 | `plugins.txt` | 每行带确切版本 |
 | 自研插件 | 各自 `package.json` 的 `version` | — |
+| 默认模型 | `profile/cordis.patch.yml` 的 `agent-default-model` | `our-free-model` / `kilo-auto/free`（免费车道，无需 Key） |
 
 升级 dsh 就是改一个 `DSH_VERSION` 然后重新构建、重新走流水线。**不要**在运行中的容器里 `npm i -g`，那会让线上和仓库脱钩。
 
