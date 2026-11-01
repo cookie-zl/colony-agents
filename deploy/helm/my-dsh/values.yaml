@@ -1,0 +1,119 @@
+# my-dsh 的默认值。生产环境请用单独的 values-prod.yaml 覆盖，不要改这个文件。
+#
+# 硬约束（改了会坏，不是调优项）：
+#   replicaCount 只能是 1，accessMode 只能是 ReadWriteOnce，strategy 只能是 Recreate。
+#   dsh 把会话放在进程内存 + $DSH_HOME，一个进程就是一个「用户视角」，多副本会各说各话。
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: harbor.example.com/dsh/my-dsh
+  # 留空则用 Chart.appVersion；Zadig 每次注入 git sha 作为 tag
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+replicaCount: 1
+
+dsh:
+  # read-only | workspace-write | danger-full-access
+  # workspace-write 的可写范围 = 进程 cwd，本 Chart 里就是 /workspace
+  permissionMode: workspace-write
+  # refresh 每次启动用镜像里的 profile 覆盖数据卷（线上语义，推荐）
+  # once / off 见 docs/04-镜像与profile.md
+  profileSeed: refresh
+  # on 启用社区插件市场；off 只是不加载，包仍在镜像里
+  marketplace: "on"
+  port: 3080
+  # 浏览器可见的地址，形如 https://dsh.example.com/
+  # 必须与 ingress.host 一致，否则部分前端链接会指向错的地方
+  publicUrl: ""
+  # 额外被信任的 authority，逗号分隔
+  trustedHosts: ""
+  # 透传给 entrypoint 的额外 --patch 文件，逗号分隔（极少用）
+  extraPatch: ""
+  extraEnv: []
+
+secrets:
+  # 二选一：
+  #   1) existingSecret：引一个已存在的 Secret，键名必须是 DEEPSEEK_API_KEY（推荐，密钥不进 values）
+  #   2) deepseekApiKey：直接写值，会落在 values 与 helm release 里，只用于临时验证
+  existingSecret: ""
+  deepseekApiKey: ""
+
+persistence:
+  home:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    # uninstall 时保留数据卷，避免误删会话与凭据
+    keepOnUninstall: true
+  workspace:
+    enabled: true
+    size: 20Gi
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    keepOnUninstall: true
+    # 想挂公司已有目录时填，填了就不创建 PVC
+    existingClaim: ""
+
+service:
+  type: ClusterIP
+  port: 3080
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  host: dsh.example.com
+  path: /
+  pathType: Prefix
+  tls:
+    enabled: true
+    secretName: ""
+  # 第一道闸：只允许公司网络 / VPN 网段访问。
+  whitelist:
+    enabled: true
+    sourceRange: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+  # 第二道闸：htpasswd。Secret 里的键必须是 auth。
+  # 生成：htpasswd -cb auth alice 'password'
+  basicAuth:
+    enabled: false
+    secretName: ""
+    realm: "DeepSeek Harness"
+  # 或接到公司统一登录网关（nginx ingress forward-auth）
+  forwardAuth:
+    enabled: false
+    url: ""
+    signinUrl: ""
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
+podSecurityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  # dsh 要写 /tmp、npm 缓存、node-pty 的临时文件，根文件系统不能只读
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop: [ALL]
+  # 若容器内报 SANDBOX_UNAVAILABLE，先把这里换成 Unconfined 定位是不是 seccomp 拦了 landlock
+  seccompProfile:
+    type: RuntimeDefault
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

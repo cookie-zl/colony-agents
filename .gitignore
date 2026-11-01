@@ -1,0 +1,29 @@
+# 依赖与产物
+node_modules/
+**/node_modules/
+dist/
+.dev/
+*.tgz
+
+# 本地配置与密钥：只提交 .env.example
+.env
+.env.*
+!.env.example
+deploy/compose/.env
+
+# agent 的工作目录：里面是运行时产物，不进版本库（只留说明文件占位）
+deploy/compose/workspace/*
+!deploy/compose/workspace/README.md
+deploy/compose/certs/
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+.DS_Store
+
+# 日志
+*.log
+npm-debug.log*
+
+# 构建阶段产出的镜像坐标（给下游部署阶段读）
+image.env

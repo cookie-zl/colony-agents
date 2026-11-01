@@ -1,0 +1,5 @@
+# dsh profile 的根：一个空条目列表。整棵树由 patch 层拼出来：
+#   bundles 列表顺序 → 本目录的 cordis.patch.yml → $DSH_HOME/cordis.patch.yml → 命令行 --patch
+#
+# 这个文件不由人维护。要改配置请改 cordis.patch.yml，要加插件请用 `dsh plugin add`。
+[]

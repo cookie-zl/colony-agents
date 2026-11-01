@@ -1,0 +1,11 @@
+packages:
+  - .
+
+nodeLinker: hoisted
+autoInstallPeers: false
+
+# 从 git 安装的插件（`dsh plugin add github:org/repo#<sha>`）需要允许它的 prepare 脚本执行。
+# 这等于允许该包在安装时以 dsh 身份跑任意命令——只对源码可信、且锁到确切 commit 的包开放。
+# 包键用 pnpm 报错里给出的那一个。
+# allowBuilds:
+#   dsh-some-plugin: true

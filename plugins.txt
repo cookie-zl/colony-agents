@@ -1,0 +1,17 @@
+# 装进镜像的插件清单：一行一个 npm 装配 spec，写法与 `dsh plugin add <spec>` 完全一致。
+#
+#   - 必须是「包名@确切版本」。不要写 `^`/`~`/`latest`：
+#     镜像要能被同一条 git commit 复现，浮动版本会让线上悄悄变形。
+#   - `#` 开头是注释，空行忽略，行内不支持注释。
+#   - 这里装的包必须声明 `dsh.bundle`（组合包），否则只会成为普通依赖、不激活任何配置层。
+#   - 每一行都等于「允许这个包的代码在服务器上以 dsh 的身份执行」，见 docs/03-社区插件.md。
+#
+# 装完由 dsh 自动写进 profile/package.json 的 dependencies 与 dsh.profile.bundles。
+
+# 社区插件市场：在应用内「插件 → 发现」里浏览 / 安装 10000+ 社区插件。
+# 运行期需要出网访问 api.dsh-plugin.org 与 npm registry。
+# 生产环境若不想放开「用户自助装插件」，用 DSH_MARKETPLACE=off 关掉它（镜像里仍然装着，只是不加载）。
+dsh-plugin@2.2.7
+
+# 自研插件不写在这里：它们的 tarball 由 Dockerfile 打包后自动安装，
+# 版本由 plugins/<name>/package.json 决定。

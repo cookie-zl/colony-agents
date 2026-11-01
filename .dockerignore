@@ -1,0 +1,19 @@
+# 构建上下文是仓库根目录，所以忽略清单必须放在根目录。
+.git
+.idea
+.vscode
+.workbuddy
+docs
+node_modules
+**/node_modules
+dist
+.dev
+*.log
+.env
+.env.*
+!.env.example
+README.md
+Makefile
+deploy/compose
+deploy/helm
+deploy/zadig

@@ -1,0 +1,7 @@
+# 运行期关掉社区插件市场（对应容器环境变量 DSH_MARKETPLACE=off）。
+#
+# 这是最高优先级的 --patch 层：dsh 启动时按 argv 顺序把 overlay 叠在 profile 之后，
+# 所以它能压过镜像里的 profile/cordis.patch.yml。
+# 只禁用这一行，包仍留在 node_modules 里——想恢复把环境变量改回 on 重启即可，无需重建镜像。
+- id: dsh-plugin
+  disabled: true

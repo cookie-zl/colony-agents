@@ -1,0 +1,57 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "my-dsh.fullname" . }}
+  labels:
+    {{- include "my-dsh.labels" . | nindent 4 }}
+  annotations:
+    {{- /* 反代必须原样透传 Host，否则 dsh 的浏览器信任护栏会让所有 /api 返回 403 */}}
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    {{- /* WebSocket 升级：Web UI 的每个交互都走长连接 */}}
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+
+    {{- if .Values.ingress.whitelist.enabled }}
+    nginx.ingress.kubernetes.io/whitelist-source-range: {{ .Values.ingress.whitelist.sourceRange | quote }}
+    {{- end }}
+
+    {{- if .Values.ingress.basicAuth.enabled }}
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: {{ .Values.ingress.basicAuth.secretName | quote }}
+    nginx.ingress.kubernetes.io/auth-realm: {{ .Values.ingress.basicAuth.realm | quote }}
+    {{- end }}
+
+    {{- if .Values.ingress.forwardAuth.enabled }}
+    nginx.ingress.kubernetes.io/auth-url: {{ .Values.ingress.forwardAuth.url | quote }}
+    {{- if .Values.ingress.forwardAuth.signinUrl }}
+    nginx.ingress.kubernetes.io/auth-signin: {{ .Values.ingress.forwardAuth.signinUrl | quote }}
+    {{- end }}
+    {{- end }}
+
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.host | quote }}
+      secretName: {{ .Values.ingress.tls.secretName | default (printf "%s-tls" (include "my-dsh.fullname" .)) }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: {{ .Values.ingress.path }}
+            pathType: {{ .Values.ingress.pathType }}
+            backend:
+              service:
+                name: {{ include "my-dsh.fullname" . }}
+                port:
+                  name: http
+{{- end }}

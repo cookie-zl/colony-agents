@@ -1,0 +1,33 @@
+# 本 profile 的覆盖层：在每个 bundle 层之后应用。
+# 顶层是一个 YAML 数组，元素是加载器 patch 条目。可用的操作：
+#
+#   - id: <已有行的 id>
+#     <任意字段>: <新值>      # 覆盖该行字段；config 是「整块替换」，不是深合并
+#   - id: <已有行的 id>
+#     disabled: true          # 关掉这一行（插件仍在 node_modules 里，只是不加载）
+#   - insert:                 # 追加新行
+#       - id: <新 id>
+#         name: <包名或绝对路径>
+#
+# 来源优先级（后者覆盖前者）：bundles 列表顺序 → 本文件 → $DSH_HOME/cordis.patch.yml → 命令行 --patch。
+# 所以容器里的 DSH_MARKETPLACE=off 走的是最后那个 --patch 层，能压过本文件。
+#
+# 下面几条是常用写法的示例，去掉注释即可生效。
+
+# 1) 给内置 llm 行换默认模型
+# - id: llm
+#   config:
+#     defaultModel: deepseek-chat
+
+# 2) 关掉社区插件市场（等价于运行时 DSH_MARKETPLACE=off，但写死在这里）
+# - id: dsh-plugin
+#   disabled: true
+
+# 3) 手工插入一个行，指向镜像里已安装的包
+# - insert:
+#     - id: hello-dsh
+#       name: '@my-dsh/hello-dsh'
+#       config:
+#         greeting: '你好'
+
+[]

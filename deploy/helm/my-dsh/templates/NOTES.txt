@@ -1,0 +1,32 @@
+部署完成。
+
+  入口地址: {{ include "my-dsh.publicUrl" . }}
+  {{- if .Values.ingress.basicAuth.enabled }}
+  HTTP Basic Auth: 已开启（Secret: {{ .Values.ingress.basicAuth.secretName }}）
+  {{- end }}
+  {{- if .Values.ingress.whitelist.enabled }}
+  来源网段白名单: {{ .Values.ingress.whitelist.sourceRange }}
+  {{- end }}
+
+下一步：
+
+  1. 拿带 token 的启动链接（首次访问要用它把 token 换成会话 Cookie）：
+     kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "my-dsh.fullname" . }} | grep -i 'http' | head -3
+
+     这个 URL 里带着进程凭据，只发给该用的人。拿到后会写一个 30 天的签名 Cookie，
+     之后同一浏览器不用再带 token。
+
+  2. 确认 profile 与你交付的一致：
+     kubectl -n {{ .Release.Namespace }} exec deploy/{{ include "my-dsh.fullname" . }} \
+       -- dsh --profile web --dump-config | grep -n '^# =='
+
+  3. 确认沙箱真的生效（没有就说明内核或 seccomp 挡了 landlock）：
+     kubectl -n {{ .Release.Namespace }} logs deploy/{{ include "my-dsh.fullname" . }} | grep -i landlock
+
+注意：
+  * 这个 Deployment 只能有 1 个副本。升级时 HTTP 会短暂中断，属预期。
+  * DSH_PROFILE_SEED={{ .Values.dsh.profileSeed }}：每次启动都会用镜像里的 profile
+    覆盖数据卷里的 profiles/。在 Web UI 里装的插件重启即失效——要长期生效请改
+    plugins.txt 或 plugins/ 后重新构建镜像。
+  * 会话与凭据在 PVC {{ include "my-dsh.fullname" . }}-home 里，带 keep 注解，
+    卸载 release 不会删除。真要清空得手动删 PVC。

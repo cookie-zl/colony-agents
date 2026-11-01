@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "my-dsh.fullname" . }}
+  labels:
+    {{- include "my-dsh.labels" . | nindent 4 }}
+spec:
+  # 只能 1：会话在进程内存 + $DSH_HOME，多副本会各说各话
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    # 必须 Recreate：RWO 卷同时挂两个 Pod 会互相踩，而且旧 Pod 不退出就没法交接
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "my-dsh.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "my-dsh.labels" . | nindent 8 }}
+    spec:
+      # dsh 收到 SIGTERM 会 dispose 整棵 root 再退出，给足时间
+      terminationGracePeriodSeconds: 30
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: dsh
+          image: {{ include "my-dsh.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.dsh.port }}
+              protocol: TCP
+          env:
+            - name: DSH_HOME
+              value: /home/dsh/.dsh
+            - name: DSH_PORT
+              value: {{ .Values.dsh.port | quote }}
+            - name: DSH_PERMISSION_MODE
+              value: {{ .Values.dsh.permissionMode | quote }}
+            - name: DSH_PROFILE_SEED
+              value: {{ .Values.dsh.profileSeed | quote }}
+            - name: DSH_MARKETPLACE
+              value: {{ .Values.dsh.marketplace | quote }}
+            - name: DSH_PUBLIC_URL
+              value: {{ include "my-dsh.publicUrl" . | quote }}
+            - name: DSH_TRUSTED_HOST
+              value: {{ .Values.dsh.trustedHosts | default .Values.ingress.host | quote }}
+            - name: DSH_EXTRA_PATCH
+              value: {{ .Values.dsh.extraPatch | quote }}
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "my-dsh.secretName" . }}
+                  key: DEEPSEEK_API_KEY
+                  # 允许先起服务、再补 key（UI 的 Settings 也能填）
+                  optional: true
+            {{- with .Values.dsh.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: home
+              mountPath: /home/dsh/.dsh
+            - name: workspace
+              mountPath: /workspace
+          # dsh 没有 /health 端点，首页无 Cookie 时是 401，所以只探 TCP
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+      volumes:
+        - name: home
+          {{- if .Values.persistence.home.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.home.existingClaim | default (printf "%s-home" (include "my-dsh.fullname" .)) }}
+          {{- else }}
+          # 没有持久卷 = 每次重启丢失会话历史，只适合临时环境
+          emptyDir: {}
+          {{- end }}
+        - name: workspace
+          {{- if .Values.persistence.workspace.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.workspace.existingClaim | default (printf "%s-workspace" (include "my-dsh.fullname" .)) }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

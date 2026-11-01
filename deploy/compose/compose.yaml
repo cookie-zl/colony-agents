@@ -1,0 +1,77 @@
+name: my-dsh
+
+# 本地 / 单机 VM 跑法：一个 dsh 容器 + 一个 Caddy 入口。
+# 用法见 docs/01-本地运行.md。生产走 Helm（deploy/helm/my-dsh），不要用这个。
+
+x-dsh-env: &dsh-env
+  DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+  DSH_PROFILE_SEED: ${DSH_PROFILE_SEED:-refresh}
+  DSH_MARKETPLACE: ${DSH_MARKETPLACE:-on}
+  DSH_PERMISSION_MODE: ${DSH_PERMISSION_MODE:-workspace-write}
+  DSH_PUBLIC_URL: ${DSH_PUBLIC_URL:-http://dsh.localhost:8080/}
+  DSH_TRUSTED_HOST: ${DSH_TRUSTED_HOST:-dsh.localhost}
+  DSH_EXTRA_PATCH: ${DSH_EXTRA_PATCH:-}
+  TZ: ${TZ:-Asia/Shanghai}
+
+services:
+  dsh:
+    build:
+      context: ../..
+      dockerfile: deploy/image/Dockerfile
+      args:
+        DSH_VERSION: ${DSH_VERSION:-0.2.1-rc.5}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
+        APT_MIRROR: ${APT_MIRROR:-mirrors.aliyun.com}
+    image: my-dsh:${DSH_VERSION:-0.2.1-rc.5}
+    restart: unless-stopped
+    # dsh 会 dispose 整棵 root 再退出，给足时间，别让 docker 直接 SIGKILL
+    stop_grace_period: 30s
+    # 容器 3GB 上限，给 Docker VM 和宿主留呼吸空间
+    mem_limit: ${DSH_MEM_LIMIT:-3g}
+    memswap_limit: ${DSH_MEM_LIMIT:-3g}
+    pids_limit: 512
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    environment: *dsh-env
+    volumes:
+      # 会话、凭据、profile、插件都在这一个目录里：必须持久化，且只能单实例挂载
+      - dsh-home:/home/dsh/.dsh
+      # 只挂一个专用工作目录。绝对不要把 $HOME 或仓库父目录挂进来
+      - ${DSH_WORKSPACE:-./workspace}:/workspace
+    expose:
+      - "3080"
+    healthcheck:
+      # dsh 绑定的是容器自己的 IP（--host 不接受通配地址），探针必须连 hostname 解析出的地址；
+      # 连 127.0.0.1 会一直 unhealthy。dsh 没有 /health 端点，探 TCP 端口即可。
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "const n=require('net').createConnection(3080, require('os').hostname());
+          n.on('connect',()=>{n.destroy();process.exit(0)}).on('error',()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    networks: [dshnet]
+
+  edge:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [dsh]
+    # 只绑回环：默认不把 UI 暴露到局域网。要给同事访问，换成公司的反代 / Ingress
+    ports:
+      - "127.0.0.1:${EDGE_PORT:-8080}:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+    networks: [dshnet]
+
+volumes:
+  dsh-home:
+  caddy-data:
+
+networks:
+  dshnet:

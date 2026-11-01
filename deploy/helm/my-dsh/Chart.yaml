@@ -1,0 +1,7 @@
+apiVersion: v2
+name: my-dsh
+description: DeepSeek Harness 内部平台：单实例 Web 服务 + 固化插件 profile
+type: application
+version: 0.1.0
+# 与 deploy/image/Dockerfile 的 DSH_VERSION 保持一致
+appVersion: "0.2.1-rc.5"

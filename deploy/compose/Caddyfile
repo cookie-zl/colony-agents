@@ -1,0 +1,39 @@
+# 本地模拟「公网入口」：Caddy 反代到 dsh。
+#
+# 关键点：Host 必须原样转发。dsh 的浏览器信任护栏按 Host/authority 判定，
+# 一旦被改写成 dsh:3080，所有 /api 请求都会返回 403。
+
+{
+	admin off
+	auto_https off
+}
+
+# dsh.localhost 在 macOS / Linux 上都会解析到 127.0.0.1，无需改 hosts
+http://dsh.localhost:8080 {
+	encode zstd gzip
+
+	reverse_proxy dsh:3080 {
+		header_up Host {host}
+	}
+
+	# ---- 想在本机先验证「只允许某些人访问」时，把下面这段放开 ----
+	# 生成密码：docker run --rm caddy:2-alpine caddy hash-password --plaintext 'your-password'
+	# basic_auth {
+	# 	alice $2a$14$replace_with_generated_hash
+	# }
+}
+
+# 想模拟 HTTPS（公司环境一定会有）时改用下面这段，并同步改：
+#   compose  DSH_PUBLIC_URL=https://dsh.localhost/
+#   证书挂载  - ./certs:/certs:ro
+#   dsh 侧    --tls-cert /certs/dsh.localhost.pem --tls-key /certs/dsh.localhost-key.pem
+# 注意：Cookie 的 Secure 属性只由 dsh 自己那个监听器的协议决定，
+# 在反代上做 TLS 终结时会话 Cookie 不会带 Secure。
+#
+# https://dsh.localhost {
+# 	tls /certs/dsh.localhost.pem /certs/dsh.localhost-key.pem
+# 	encode zstd gzip
+# 	reverse_proxy dsh:3080 {
+# 		header_up Host {host}
+# 	}
+# }
