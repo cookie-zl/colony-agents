@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  syntax:
+    name: 语法检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: node --check 全部脚本与插件
+        run: |
+          set -e
+          fail=0
+          while IFS= read -r f; do
+            node --check "$f" || { echo "语法错误: $f"; fail=1; }
+          done < <(find deploy plugins \( -name '*.mjs' -o -name '*.js' \) -not -path '*/node_modules/*')
+          exit $fail
+      - name: shell 脚本语法
+        run: |
+          set -e
+          for f in $(find deploy -name '*.sh'); do bash -n "$f" || { echo "语法错误: $f"; exit 1; }; done
+
+  verify:
+    name: 离线自测
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: make verify-all
+        run: make verify-all
+
+  secrets:
+    name: 密钥扫描
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 运行时文件不能进版本库
+        run: |
+          set -e
+          bad=$(git ls-files | grep -E '(^|/)(accounts\.json|nodes\.json|console-token|secret\.key|.*\.db|.*\.db-wal)$' | grep -v '\.example\.json' || true)
+          if [ -n "$bad" ]; then
+            echo "以下运行时/凭据文件不该被提交："
+            echo "$bad"
+            exit 1
+          fi
+          echo "没有运行时文件入库"

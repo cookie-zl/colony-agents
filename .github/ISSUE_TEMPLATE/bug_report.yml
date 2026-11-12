@@ -1,0 +1,68 @@
+name: Bug 报告
+description: 报告一个可复现的问题（安全漏洞请走 SECURITY.md，不要开 issue）
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先确认几件事，能省掉一半来回：
+        1. `make ps` 里容器是不是 healthy；
+        2. `make logs` 最后 50 行有没有报错；
+        3. 是不是只在这台机器 / 这个网络下复现。
+
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 现象 + 你期望的结果
+      placeholder: |
+        点了「接入钉钉」之后面板一直显示「读取中…」；
+        期望是弹出两个字段的连接框。
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      description: 从哪个入口、点了什么、第几步开始不对
+      placeholder: |
+        1. make up
+        2. 打开 http://team-a.localhost:8080/
+        3. 侧栏「助理」→「接入钉钉」
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志与原始输出
+      description: 贴原始输出，不要只写「报错了」
+      render: shell
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 涉及哪一块
+      options:
+        - 本地运行 / 镜像
+        - 账号与准入
+        - 多团队 / 控制面
+        - 休眠与唤醒
+        - IM 助理（钉钉 / 飞书）
+        - 技能与连接器市场
+        - 会话 / 对象层 / 数据
+        - 插件开发
+        - 文档
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 环境
+      description: dsh 版本（`grep DSH_VERSION deploy/compose/.env`）、Node 版本、操作系统、Docker 版本
+      placeholder: dsh 0.2.1-rc.5 · Node 22.22.2 · macOS 15 · Docker 27.3
+    validations:
+      required: true

@@ -1,0 +1,47 @@
+name: 功能建议
+description: 提出一个新能力或改进（先聊清楚场景，再谈实现）
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你遇到的具体场景
+      description: 说清楚「不这么做会怎样」，比说「希望能支持 X」有用得多
+      placeholder: |
+        我们有两个团队共用一个实例，结果 A 组的会话出现在 B 组历史里。
+        我希望同一台机器上按团队彻底隔离，但不想手工起两套 compose。
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你建议怎么做
+      description: 有想法就写；没有也行，说明期望的效果
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 你试过的替代方案
+      description: 现在怎么绕过去的？为什么不够用？
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 涉及哪一块
+      options:
+        - 本地运行 / 镜像
+        - 账号与准入
+        - 多团队 / 控制面
+        - 休眠与唤醒
+        - IM 助理（钉钉 / 飞书 / 其他平台）
+        - 技能与连接器市场
+        - 会话 / 对象层 / 数据
+        - 插件开发
+        - 文档
+    validations:
+      required: true
