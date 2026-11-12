@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-03T14:02:43.126Z",
+  "items": [
+    {
+      "kind": "skill",
+      "name": "hologres-query",
+      "version": "1.0.0",
+      "title": "hologres-query",
+      "desc": "在 Hologres 上写查询的规范：先 EXPLAIN 再跑数、分区裁剪、避免全表 DISTINCT、结果必须带行数与耗时。适用于 ad_reports 这类带 jsonb 列的事实表。",
+      "tags": [],
+      "visibility": "public",
+      "owner": "system",
+      "publishedAt": "2026-11-03T13:57:49.523Z"
+    },
+    {
+      "kind": "mcp",
+      "name": "github",
+      "version": "1.0.0",
+      "title": "GitHub",
+      "desc": "查仓库、读 issue、提 PR。需要提供 personal access token，安装时填，落进团队自己的卷里。",
+      "tags": [
+        "github",
+        "git",
+        "code"
+      ],
+      "visibility": "public",
+      "owner": "system",
+      "publishedAt": "2026-11-03T13:57:49.530Z",
+      "env": [
+        {
+          "key": "GITHUB_TOKEN",
+          "required": true,
+          "desc": "GitHub personal access token，repo 权限即可"
+        }
+      ]
+    },
+    {
+      "kind": "skill",
+      "name": "ad-report-audit",
+      "version": "1.1.0",
+      "title": "广告报表口径核对",
+      "desc": "跨平台报表口径核对（team-a 私有版本）",
+      "tags": [],
+      "visibility": "private",
+      "owner": "team-a",
+      "publishedAt": "2026-11-03T14:01:29.698Z"
+    },
+    {
+      "kind": "mcp",
+      "name": "filesystem",
+      "version": "1.2.0",
+      "title": "文件系统（团队定制）",
+      "desc": "只挂 /workspace 的文件读写",
+      "tags": [],
+      "visibility": "public",
+      "owner": "team-a",
+      "publishedAt": "2026-11-03T14:02:43.027Z",
+      "env": []
+    }
+  ]
+}

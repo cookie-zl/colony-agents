@@ -56,3 +56,17 @@
 #   config:
 #     provider: our-free-model
 #     model: nvidia/nemotron-3-ultra-550b-a55b:free
+
+# ---------------------------------------------------------------------------
+# 工作目录口径：没有历史目录的会话，一律从 /workspace 起
+# ---------------------------------------------------------------------------
+#
+# dsh 默认拿启动进程的 cwd 当兜底目录。容器里那是 /workspace（Dockerfile 的 WORKDIR），
+# 但「默认值恰好对」不算约定：换 WORKDIR、或者别的入口用别的 cwd 启动，兜底就飘了。
+# 显式钉在 /workspace ——它是宿主目录的 bind mount，写进去的东西发版后还在。
+#
+# 用户手工建的工作区（会带具体的 <name>）由插件 workspace-guard 收敛到 /workspace/<name>，
+# 这里只负责「连目录都没有」的那一档。
+- id: working-directory
+  config:
+    defaultDirectory: /workspace

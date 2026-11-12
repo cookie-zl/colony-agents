@@ -4,6 +4,10 @@ name: my-dsh
 # 用法见 docs/01-本地运行.md。生产走 Helm（deploy/helm/my-dsh），不要用这个。
 
 x-dsh-env: &dsh-env
+  # 模型请求走控制面网关：baseURL 指过去，DEEPSEEK_API_KEY 里放的是「网关 token」，
+  # 不是真密钥。真 key 只在控制面（team_secrets 表，AES-GCM），容器里永远拿不到。
+  # 留空 = 直连官方（本地调试用），此时 DEEPSEEK_API_KEY 必须是真的。
+  DEEPSEEK_BASE_URL: ${DSH_LLM_BASE_URL:-}
   DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
   DSH_PROFILE_SEED: ${DSH_PROFILE_SEED:-refresh}
   DSH_MARKETPLACE: ${DSH_MARKETPLACE:-on}
@@ -11,6 +15,13 @@ x-dsh-env: &dsh-env
   DSH_PUBLIC_URL: ${DSH_PUBLIC_URL:-http://dsh.localhost:8080/}
   DSH_TRUSTED_HOST: ${DSH_TRUSTED_HOST:-dsh.localhost}
   DSH_EXTRA_PATCH: ${DSH_EXTRA_PATCH:-}
+  # 团队标识 + 只读市场 token：dsh 里的 market-skill 插件靠它向控制面拉技能目录。
+  # token 每团队一枚，只能读本团队已启用的技能，拿不到 console-token 的建/删团队权限。
+  DSH_TEAM: ${DSH_TEAM:-team-a}
+  MARKET_API_URL: ${MARKET_API_URL:-http://host.docker.internal:9700}
+  MARKET_API_TOKEN: ${MARKET_API_TOKEN:-}
+  # 容器里访问宿主机不能走宿主代理，否则请求会打到代理上挂掉
+  NO_PROXY: ${NO_PROXY:-host.docker.internal,localhost,127.0.0.1}
   TZ: ${TZ:-Asia/Shanghai}
 
 services:
@@ -22,18 +33,26 @@ services:
         DSH_VERSION: ${DSH_VERSION:-0.2.1-rc.5}
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
         APT_MIRROR: ${APT_MIRROR:-mirrors.aliyun.com}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
     image: my-dsh:${DSH_VERSION:-0.2.1-rc.5}
     restart: unless-stopped
     # dsh 会 dispose 整棵 root 再退出，给足时间，别让 docker 直接 SIGKILL
     stop_grace_period: 30s
-    # 容器 3GB 上限，给 Docker VM 和宿主留呼吸空间
-    mem_limit: ${DSH_MEM_LIMIT:-3g}
-    memswap_limit: ${DSH_MEM_LIMIT:-3g}
+    # 单片资源上限：同机可能并排跑多个团队的实例，不设上限时一个团队的 agent
+    # 跑满编译就能把别的团队一起拖死（宿主内存被吃穿时 Docker VM 会整体 OOM）。
+    # 具体数值由控制面按节点预算分配，手动起实例时用默认值。
+    cpus: ${DSH_CPUS:-1.5}
+    mem_limit: ${DSH_MEM_LIMIT:-2g}
+    memswap_limit: ${DSH_MEM_LIMIT:-2g}
     pids_limit: 512
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
     environment: *dsh-env
+    extra_hosts:
+      # 拉技能要走 http://host.docker.internal:9700（控制面在宿主上）。
+      # Docker Desktop / OrbStack 默认就解析这个名字，显式写一遍是为了 Linux 宿主机也能跑。
+      - host.docker.internal:host-gateway
     volumes:
       # 会话、凭据、profile、插件都在这一个目录里：必须持久化，且只能单实例挂载
       - dsh-home:/home/dsh/.dsh
@@ -55,18 +74,71 @@ services:
       start_period: 60s
     networks: [dshnet]
 
+  # 账号与团队：登录、加入团队、跨团队单点跳转。
+  # 每个团队实例各起一个（Cookie 按 host 隔离），但共用同一份 accounts.json 与 secret，
+  # 所以「加入团队」在哪个实例上做都算数。见 docs/07-多团队账号.md
+  auth:
+    build:
+      context: ../auth
+    image: my-dsh-auth:dev
+    restart: unless-stopped
+    environment:
+      DSH_TEAM: ${DSH_TEAM:-team-a}
+      AUTH_PORT: "9000"
+      ACCOUNTS_FILE: /data/accounts.json
+      SECRET_FILE: /data/secret
+      TOKEN_DIR: /tokens
+      # 访问审计落盘目录（按天切 jsonl）。容器内 uid 1000，宿主机目录由 team-up.sh 放开写权限
+      AUDIT_DIR: /data/audit
+      # 控制面（建团队 = 建容器）。本地是宿主上的 node 进程，见 deploy/orchestrator/README.md
+      ORCHESTRATOR_URL: ${ORCHESTRATOR_URL:-http://host.docker.internal:9700}
+      ORCHESTRATOR_TOKEN_FILE: /data/console-token
+      # 本地调试免登录：不弹登录页，所有请求按 DSH_DEBUG_USER 放行（默认 alice）。
+      # 生产必须显式设 DSH_SKIP_LOGIN=0。Caddy 与 auth 都读这个变量。
+      DSH_SKIP_LOGIN: ${DSH_SKIP_LOGIN:-1}
+      DSH_DEBUG_USER: ${DSH_DEBUG_USER:-alice}
+      # 联调便利：登录页把账号密码预填好，直接点「登录」。默认就是文档里的演示账号，
+      # 生产部署把它显式覆盖成空（LOGIN_PREFILL_USER=）即可关闭。
+      LOGIN_PREFILL_USER: ${LOGIN_PREFILL_USER-alice}
+      LOGIN_PREFILL_PASSWORD: ${LOGIN_PREFILL_PASSWORD-dsh-demo-1234}
+      # 钉钉/飞书回调地址对外暴露的前缀（走内网穿透或反代时配）。留空 = 按当前 Host 推断。
+      ASSISTANT_INBOUND_BASE: ${ASSISTANT_INBOUND_BASE:-}
+      TZ: ${TZ:-Asia/Shanghai}
+    extra_hosts:
+      # Docker Desktop / OrbStack 默认就有，显式写一遍是为了 Linux 宿主机也能跑
+      - host.docker.internal:host-gateway
+    volumes:
+      # accounts.json 要可写：加入团队会改它（要么改这个文件，要么接 IdP）
+      - ../auth/accounts.json:/data/accounts.json
+      - ../auth/secret:/data/secret:ro
+      # 控制面 token：由 team-up.sh 生成，权限与 secret 同级
+      - ../orchestrator/console-token:/data/console-token:ro
+      # 各团队实例的 dsh token，由 team-up.sh 同步进来，用来跳过一次 401
+      - ../auth/tokens:/tokens:ro
+      # 访问审计（谁在什么时候用了哪个团队）。容器以 uid 1000 写，宿主机目录需放开权限
+      - ../auth/audit:/data/audit
+    expose:
+      - "9000"
+    networks: [dshnet]
+
   edge:
     image: caddy:2-alpine
     restart: unless-stopped
-    depends_on: [dsh]
+    depends_on: [dsh, auth]
     # 只绑回环：默认不把 UI 暴露到局域网。要给同事访问，换成公司的反代 / Ingress
+    # 宿主机与容器内用同一个端口号：Caddy 的站点地址要写 host:端口，两者不一致就会出现
+    # 「端口映射通了但 Caddy 没在听的端口上，返回空响应」这种很难看的故障。
     ports:
-      - "127.0.0.1:${EDGE_PORT:-8080}:8080"
+      - "127.0.0.1:${EDGE_PORT:-8080}:${EDGE_PORT:-8080}"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
     environment:
       TZ: ${TZ:-Asia/Shanghai}
+      # Caddyfile 的站点地址由这两个变量拼出来：一个团队实例一个 host + 一个端口
+      DSH_SITE_HOST: ${DSH_SITE_HOST:-dsh.localhost}
+      EDGE_PORT: ${EDGE_PORT:-8080}
+      DSH_SKIP_LOGIN: ${DSH_SKIP_LOGIN:-1}
     networks: [dshnet]
 
 volumes:

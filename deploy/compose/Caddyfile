@@ -1,39 +1,83 @@
-# 本地模拟「公网入口」：Caddy 反代到 dsh。
+# 本地模拟「公网入口 + 统一登录」：Caddy 先问账号服务，再反代到 dsh。
 #
-# 关键点：Host 必须原样转发。dsh 的浏览器信任护栏按 Host/authority 判定，
-# 一旦被改写成 dsh:3080，所有 /api 请求都会返回 403。
+# 关键点 1：Host 必须原样转发，**且必须带上端口**。
+# dsh 的浏览器信任护栏拿收到的 Host 和浏览器的 Origin 比对，任一侧丢端口就判不一致，
+# 表现是页面能打开、但所有 /api 请求 403（例如 directoryPicker/list）。
+# 注意 Caddy 的 {host} 是「去掉端口」的 host，{http.request.hostport} 才带端口。
+#
+# 关键点 2：站点地址是参数化的（DSH_SITE_HOST / EDGE_PORT）。
+# 一个团队 = 一个 compose 项目 = 一个 host + 一个端口，见 docs/07-多团队账号.md。
+#
+# 关键点 3：三层顺序不能换 —— 登录态 → 团队成员 → dsh 自己的 token。
+# 前两层由 auth 服务回答，第三层是 dsh 的单用户 Cookie，只能靠 redirect 补。
 
 {
 	admin off
 	auto_https off
 }
 
-# dsh.localhost 在 macOS / Linux 上都会解析到 127.0.0.1，无需改 hosts
-http://dsh.localhost:8080 {
+# *.localhost 在 macOS / Linux 上都解析到 127.0.0.1，多团队不需要改 /etc/hosts
+http://{$DSH_SITE_HOST:dsh.localhost}:{$EDGE_PORT:8080} {
 	encode zstd gzip
 
-	reverse_proxy dsh:3080 {
-		header_up Host {host}
+	# 账号服务的端点：登录 / 登出 / 门户 / 加入团队 / 跨团队票据
+	handle /__auth/* {
+		reverse_proxy auth:9000
 	}
 
-	# ---- 想在本机先验证「只允许某些人访问」时，把下面这段放开 ----
-	# 生成密码：docker run --rm caddy:2-alpine caddy hash-password --plaintext 'your-password'
-	# basic_auth {
-	# 	alice $2a$14$replace_with_generated_hash
-	# }
+	handle {
+		# route 强制按书写顺序执行；直接写在同一层会被 Caddy 的固定指令顺序打乱
+		route {
+			# ① 没有登录 Cookie：去登录页，登录后回到原路径
+			#    DSH_SKIP_LOGIN=1 是本地调试开关：跳过登录页，直接当默认用户放行。
+			#    第②层 forward_auth 仍然要跑——它还负责「端口变了重签 dsh cookie」。
+			@noLogin expression `!{http.request.header.Cookie}.contains("dsh-sso=") && "{$DSH_SKIP_LOGIN:0}" != "1"`
+			redir @noLogin /__auth/login?rd={uri} 302
+
+			# ② 登录了但可能不是本团队成员：由账号服务回答 200 或 403
+			forward_auth auth:9000 {
+				uri /__auth/verify
+				copy_headers X-Auth-User X-Auth-Name X-Auth-Teams
+			}
+
+			# ③ dsh 只认自己签发的 Cookie，缺了就用当前实例的 token 换一个。
+			#    必须放行带 ?token= 的请求，否则会把「换 Cookie 的那一下」也拦掉，形成死循环。
+			@noDsh expression `!{http.request.header.Cookie}.contains("dsh-auth-") && !{http.request.uri.query}.contains("token=")`
+			redir @noDsh /__auth/bootstrap 302
+
+			reverse_proxy dsh:3080 {
+				header_up Host {http.request.hostport}
+			}
+		}
+	}
 }
 
 # 想模拟 HTTPS（公司环境一定会有）时改用下面这段，并同步改：
-#   compose  DSH_PUBLIC_URL=https://dsh.localhost/
+#   compose  DSH_PUBLIC_URL=https://team-a.localhost/   DSH_SITE_HOST=team-a.localhost
 #   证书挂载  - ./certs:/certs:ro
-#   dsh 侧    --tls-cert /certs/dsh.localhost.pem --tls-key /certs/dsh.localhost-key.pem
+#   dsh 侧    --tls-cert /certs/team-a.localhost.pem --tls-key /certs/team-a.localhost-key.pem
 # 注意：Cookie 的 Secure 属性只由 dsh 自己那个监听器的协议决定，
 # 在反代上做 TLS 终结时会话 Cookie 不会带 Secure。
 #
-# https://dsh.localhost {
-# 	tls /certs/dsh.localhost.pem /certs/dsh.localhost-key.pem
+# https://{$DSH_SITE_HOST:team-a.localhost} {
+# 	tls /certs/team-a.localhost.pem /certs/team-a.localhost-key.pem
 # 	encode zstd gzip
-# 	reverse_proxy dsh:3080 {
-# 		header_up Host {host}
+# 	handle /__auth/* {
+# 		reverse_proxy auth:9000
+# 	}
+# 	handle {
+# 		route {
+# 			@noLogin not header Cookie *dsh-sso=*
+# 			redir @noLogin /__auth/login?rd={uri} 302
+# 			forward_auth auth:9000 {
+# 				uri /__auth/verify
+# 				copy_headers X-Auth-User X-Auth-Teams
+# 			}
+# 			@noDsh not header Cookie *dsh-auth-*
+# 			redir @noDsh /__auth/bootstrap 302
+# 			reverse_proxy dsh:3080 {
+# 				header_up Host {http.request.hostport}
+# 			}
+# 		}
 # 	}
 # }

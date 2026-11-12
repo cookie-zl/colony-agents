@@ -1,0 +1,22 @@
+{
+  "kind": "mcp",
+  "name": "filesystem",
+  "version": "1.2.0",
+  "title": "文件系统（团队定制）",
+  "desc": "只挂 /workspace 的文件读写",
+  "tags": [],
+  "visibility": "public",
+  "owner": "team-a",
+  "publishedAt": "2026-11-03T14:02:43.027Z",
+  "spec": {
+    "serverName": "filesystem",
+    "transport": "stdio",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@modelcontextprotocol/server-filesystem",
+      "/workspace"
+    ]
+  },
+  "env": []
+}

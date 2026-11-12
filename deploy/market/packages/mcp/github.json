@@ -1,0 +1,19 @@
+{
+  "kind": "mcp",
+  "name": "github",
+  "version": "1.0.0",
+  "title": "GitHub",
+  "desc": "查仓库、读 issue、提 PR。需要提供 personal access token，安装时填，落进团队自己的卷里。",
+  "tags": ["github", "git", "code"],
+  "visibility": "public",
+  "owner": "system",
+  "spec": {
+    "transport": "stdio",
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-github"],
+    "env": {
+      "GITHUB_TOKEN": ""
+    }
+  },
+  "env": [{ "key": "GITHUB_TOKEN", "required": true, "desc": "GitHub personal access token，repo 权限即可" }]
+}

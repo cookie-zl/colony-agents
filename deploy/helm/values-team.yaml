@@ -1,0 +1,65 @@
+# 团队实例的 values（一个团队 = 一个 release）。
+#
+# 不要直接改这个文件里的 host：deploy-teams.sh 会用 teams.txt 逐条 --set 覆盖。
+# 手工验证一条：
+#   helm template dsh-team-a deploy/helm/my-dsh -n ai-tools \
+#     -f deploy/helm/values-team.yaml \
+#     --set ingress.host=dsh-team-a.example.com \
+#     --set dsh.publicUrl=https://dsh-team-a.example.com/
+#
+# 与 values.yaml 的差别只有四处，都和安全边界有关：
+#   marketplace=off        共享实例里「能打开页面」等于「能往主进程装代码」
+#   permissionMode         团队里出事查不到是谁，可写范围越小越好
+#   home/workspace 更大     团队要放协作代码，个人实例不需要这么大
+#   forwardAuth 打开        账号在 IdP，dsh 侧只认「组成员」这一层
+
+replicaCount: 1
+
+image:
+  repository: harbor.example.com/dsh/my-dsh
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: harbor-pull
+
+secrets:
+  # 团队实例只能放团队共用凭据；个人 Key 一律不给，那是个人实例的事
+  existingSecret: dsh-deepseek-key
+
+dsh:
+  permissionMode: workspace-write
+  profileSeed: refresh
+  marketplace: "off"
+  # 必须与 ingress.host 完全一致，否则前端部分链接会指向别处
+  publicUrl: ""
+  trustedHosts: ""
+
+persistence:
+  home:
+    size: 20Gi
+  workspace:
+    size: 100Gi
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
+ingress:
+  enabled: true
+  host: ""
+  tls:
+    enabled: true
+  whitelist:
+    enabled: true
+    sourceRange: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+  # 组级放行：deploy-teams.sh 会把 auth-url 指向该团队的 oauth2-proxy
+  forwardAuth:
+    enabled: true
+    url: ""
+    signinUrl: ""
+  annotations: {}

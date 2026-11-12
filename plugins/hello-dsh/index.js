@@ -27,7 +27,7 @@ export function apply(ctx, config) {
 
   // 启动时打一行日志：样板插件的第一职责是「证明自己被加载了」。
   // 容器里 `make logs | grep hello-dsh` 应该能看到它。
-  console.log('[hello-dsh] plugin loaded, greeting =', greeting)
+  console.error('[hello-dsh] plugin loaded, greeting =', greeting)
 
   ctx.tools.register(
     defineTool({

@@ -21,11 +21,17 @@ git config --global core.pager cat
 #   refresh 每次启动都覆盖 —— 线上与仓库永不脱钩（UI 里装的插件重启即失效，这是刻意的）
 #   once    只在首次启动铺一次 —— 本地想留住手装的插件时用
 #   off     完全不铺 —— 完全自己管 profile
+#
+# 但「UI 里改的 agent 参数」必须活过重启：dsh 把模型/preset/工具开关写进 active profile
+# 的 cordis.patch.yml，这个文件正好在 refresh 的删除范围内。所以铺之前把用户现场存一份，
+# 铺完再把「用户改动」叠回镜像新基线上（见 profile-patch.mjs）。
 seed_profiles() {
   [ -d "${DSH_SEED_SRC}/web" ] || return 0
   mkdir -p "${DSH_HOME}/profiles"
+  node /opt/dsh/profile-patch.mjs capture || true
   rm -rf "${DSH_HOME}/profiles/web"
   cp -a "${DSH_SEED_SRC}/web" "${DSH_HOME}/profiles/web"
+  node /opt/dsh/profile-patch.mjs merge || true
   date -u +%FT%TZ > "${DSH_HOME}/.seeded"
 }
 
@@ -84,6 +90,15 @@ if [ -n "${DSH_TRUSTED_HOST:-}" ]; then
   done
 fi
 
+
+# 工作区登记收敛：把 /workspace 之外的旧工作区摘掉、会话归档、initialized 置 false，
+# 让 dsh 下次启动时按 cwd 重建 /workspace 这一个工作区（旧路径不兼容，见 docs/19）。
+# 必须在 prepare-workspaces 之前跑：它决定接下来还要不要补建那些旧目录。
+node /opt/dsh/migrate-workspaces.mjs || true
+
+# 历史会话的 cwd 若在容器可写层，重建后就没了；dsh 会因此把会话判成 cwd 不可解析。
+# 启动前按 workspace 索引补建一遍，代价是几个 mkdir，收益是会话还能打开。
+node /opt/dsh/prepare-workspaces.mjs || true
 
 echo "dsh: ${BIND_IP}:${DSH_PORT} seed=${DSH_PROFILE_SEED} marketplace=${DSH_MARKETPLACE}" \
      "public-url=${DSH_PUBLIC_URL:-<none>} trusted-host=${DSH_TRUSTED_HOST:-<none>}" >&2

@@ -1,0 +1,13 @@
+# 团队清单：一行一个团队，一个团队 = 一个 release = 一个实例 = 一组独立卷。
+#
+#   团队名   浏览器访问的 host         该团队 SSO 网关的 host（oauth2-proxy）
+#
+# 团队名同时决定三件事，改名前先想清楚：
+#   release 名      dsh-<团队名>
+#   IdP 组名        dsh-<团队名>（改组名要同步改 IdP）
+#   容器/卷名前缀   dsh-<团队名>_home / dsh-<团队名>_workspace
+#
+# 用 deploy-teams.sh 消费；空行与 # 开头的行会被跳过。
+
+team-a    dsh-team-a.example.com    auth-team-a.example.com
+team-b    dsh-team-b.example.com    auth-team-b.example.com
