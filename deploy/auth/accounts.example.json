@@ -1,0 +1,38 @@
+{
+  "$comment": "演示用账号库。首次运行：cp deploy/auth/accounts.example.json deploy/auth/accounts.json（或 make seed）。演示账号 admin / demo1234，只用于本机，别带到任何能公网访问的环境。",
+  "teams": {
+    "team-a": {
+      "name": "演示团队",
+      "desc": "一个团队 = 一个隔离实例 = 一组独立卷",
+      "host": "team-a.localhost",
+      "port": 8085,
+      "owner": "admin",
+      "roles": {
+        "admin": "owner",
+        "member": "member"
+      }
+    }
+  },
+  "users": {
+    "admin": {
+      "name": "管理员",
+      "salt": "f7dad49f2302cbcf28e8b47864716fe9",
+      "hash": "767d5bb70528c3268b9d6b4d421aa11487bc5b9c3f10cca6ddb45dfb53516281",
+      "teams": [
+        "team-a"
+      ],
+      "role": "admin",
+      "pv": 2
+    },
+    "member": {
+      "name": "成员",
+      "salt": "b83bac861e8969e3d753377fc47ce780",
+      "hash": "61ae6c9f70386d43222ffc7f21f12f2f3be5bc85bcbfb9b805331d4e499ec926",
+      "teams": [
+        "team-a"
+      ],
+      "role": "member",
+      "pv": 2
+    }
+  }
+}

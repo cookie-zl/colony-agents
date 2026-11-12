@@ -14,7 +14,62 @@ deploy/compose/.env
 # agent 的工作目录：里面是运行时产物，不进版本库（只留说明文件占位）
 deploy/compose/workspace/*
 !deploy/compose/workspace/README.md
+deploy/compose/workspace-*/
 deploy/compose/certs/
+
+# 账号与团队关系：真实文件含密码盐与哈希，只提交示例
+deploy/auth/accounts.json
+!deploy/auth/accounts.example.json
+
+# 节点清单：本机路径、端口与资源预算因人而异，只提交示例
+deploy/orchestrator/nodes.json
+!deploy/orchestrator/nodes.example.json
+
+# 本地协作工具的私有记忆（含内部背景），不属于项目内容
+.workbuddy/
+
+# 账号服务的运行时状态：会话密钥与各团队的 dsh token 都算凭据
+deploy/auth/secret
+deploy/auth/tokens/*
+!deploy/auth/tokens/.gitkeep
+deploy/auth/accounts.json.tmp
+
+# 控制面的鉴权 token：账号服务拿它调宿主上的控制面
+deploy/orchestrator/console-token
+# 控制面的运行态：上次访问时间、谁在睡。换台机器就该重建，不进版本库
+deploy/orchestrator/state.json
+
+# 运行时产物：归档包含用户会话数据、快照是配置副本、helm-values 是生成物
+deploy/orchestrator/archives/
+deploy/orchestrator/backups/
+deploy/orchestrator/helm-values/
+
+# 团队级模型 key：密钥不进版本库
+
+# 安装台账：跟着卷走，换台机器就该重建
+deploy/orchestrator/packages.json
+
+# 分享流水：同样跟着实例走，不是仓库内容
+deploy/orchestrator/shares.json
+
+# 事实库：技能 / 连接器 / 分享 / 操作日志的唯一来源。跟着实例走，不进版本库
+deploy/orchestrator/dsh.db
+deploy/orchestrator/dsh.db-wal
+deploy/orchestrator/dsh.db-shm
+
+# 分享暂存区：别人投递过来、还没启用的包，是运行态数据
+deploy/orchestrator/inbox/
+
+# 包操作日志：按团队可查的流水，换台机器就该重来
+deploy/orchestrator/oplog.json
+
+# 原子写的中间文件：进程被 kill 或文件系统不让删时会残留，不是数据
+deploy/orchestrator/*.json.tmp-*
+deploy/auth/*.json.tmp-*
+
+# 访问审计日志：含用户名与 IP，不进版本库
+deploy/auth/audit/*
+!deploy/auth/audit/.gitkeep
 
 # 编辑器 / 系统
 .idea/
@@ -27,3 +82,14 @@ npm-debug.log*
 
 # 构建阶段产出的镜像坐标（给下游部署阶段读）
 image.env
+
+# 对象层：归档包等内容寻址的二进制，属于运行时数据，不进版本库
+deploy/orchestrator/objects/
+deploy/orchestrator/archives/
+deploy/orchestrator/archives/.staging/
+
+# verify-profile 从镜像借的 yaml 库（可随时重建，不入库）
+.verify-yaml/
+
+# 团队密钥的主密钥（KEK）：丢了所有已存密钥都要重配，绝不入库
+secret.key

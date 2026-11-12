@@ -1,0 +1,15 @@
+{
+  "$comment": "节点清单：控制面按这里的资源预算决定「新建团队能不能放下」。首次运行 cp deploy/orchestrator/nodes.example.json deploy/orchestrator/nodes.json，再按自己的机器改 cpuBudget / memBudgetGB。",
+  "nodes": [
+    {
+      "id": "local",
+      "label": "本机",
+      "provider": "compose",
+      "domain": "localhost",
+      "portBase": 8082,
+      "portMax": 8180,
+      "cpuBudget": 4,
+      "memBudgetGB": 6
+    }
+  ]
+}
