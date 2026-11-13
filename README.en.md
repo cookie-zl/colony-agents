@@ -1,6 +1,6 @@
 <div align="center">
 
-# Dockmaster
+# dsh platform
 
 **Turn an AI agent into team infrastructure.**
 
@@ -19,27 +19,45 @@ sleep-wake, backups and a skill marketplace — all on your own machines.
 
 ## What it is
 
-[Dockmaster](.) wraps [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh — an agent runtime
-that can read/write files, run commands and load skills) into something **a team can actually operate**:
+In one sentence: **deploy one agent to the cloud, share it with the whole team, extend it with plugins.**
 
-- **One team = one instance = one set of volumes.** No cross-team context bleed.
-- **Accounts, roles and an audit log** — not "whoever has the URL gets in".
-- **Sleep when idle, wake on access.** Several teams fit on one box.
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh) is built for one person — one process,
+one session, one `$DSH_HOME`. That is great solo and breaks down for a team: anyone can walk in, sessions bleed
+into each other, nobody dares restart the box, and it burns RAM while idle. This project fills that gap:
+
+- **One team = one agent instance** (a compose project / a Helm release), isolated volumes, no cross-team bleed.
+- **Many people share that one agent**, each with an account and a role, with an audit trail.
+- **Plugin-based extension** — capabilities ship as npm packages installed into the profile; `apply(ctx)` runs
+  inside the dsh process, and `make reload` swaps them in about ten seconds.
 - **The agent lives in your chat, too.** `@` the bot in DingTalk / Feishu; the reply lands in that group,
   same session. DingTalk uses a **Stream** long connection, so no public IP and no tunnel required.
-- **Sessions survive restarts** — sessions and archives go to a content-addressed object layer, so the
-  container is a disposable cache.
-- **One-click team creation** — portal button → container, with quota checks and rollback.
+- **Sleep when idle, wake on access**; several teams fit on one box.
+- **Sessions survive restarts** — sessions and archives go to a content-addressed object layer, so the container
+  is a disposable cache.
 
 It is *not* another chat front-end. It is the operations layer: how images ship, how teams are provisioned,
 how model keys are stored, how data outlives a `docker rm`.
+
+### Two repositories
+
+| Repo | Contains | For |
+| --- | --- | --- |
+| **this one** (platform) | image, profile, control plane, account service, assistants, market — plus the six plugins | running the team edition with one command |
+| [dsh-plugins](https://github.com/zhang-zi-long/dsh-plugins) | just the six plugin packages | you already run dsh and only want, say, `workspace-guard` |
+
+The dependency is one-way: the plugin repo does not know the platform exists. Plugins are still developed and
+tested here (their behaviour tests need a dsh container and DB fixtures), then exported with
+`make mirror-plugins`, with `make mirror-check` guarding against drift.
+
+No git submodules on purpose: private submodules need extra credentials, and a `git clone` without
+`--recurse-submodules` yields a build that fails — the classic open-source turn-off.
 
 ## Quickstart
 
 Requires Docker and `make`.
 
 ```bash
-git clone https://github.com/zhang-zi-long/my-dsh.git dockmaster && cd dockmaster
+git clone https://github.com/zhang-zi-long/my-dsh.git dsh-platform && cd dsh-platform
 make seed      # generate accounts.json / nodes.json / .env (demo login admin / demo1234)
 make up        # build image, start team-a → http://team-a.localhost:8080/
 ```

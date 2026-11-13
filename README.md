@@ -1,6 +1,6 @@
 <div align="center">
 
-# Dockmaster
+# dsh platform
 
 **把 AI Agent 变成团队基础设施**
 
@@ -21,18 +21,32 @@
 
 ## 这是什么
 
-[Docker](https://www.docker.com) 之前，大家把进程直接跑在机器上：端口打架、依赖打架、谁也不敢重启。
-现在轮到 AI Agent 了——很多团队还停留在「一台机器上裸跑一个 Agent，几个人共用一个会话」。
+一句话：**把一个 Agent 部署到云上，让整个团队共用它，再用插件往里加能力。**
 
-**Dockmaster 是给 AI Agent 用的「码头」**：它把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（下称 dsh，
-一个能读写文件、跑命令、装技能的 Agent 运行时）包装成一个**可运营的内部平台**——
+dsh 本身是单人视角的：一个进程、一份会话、一个 `$DSH_HOME`。一个人用很顺手，给团队用就会撞墙——
+谁都能进、会话互相污染、机器不敢重启、闲置还在烧钱。本项目补的就是这一层：
 
-- 一个团队 = 一个隔离实例 = 一组独立数据卷，互不串味；
-- 有账号、有准入、有审计，不是「拿到链接就能进」；
-- 闲置自动休眠，有人访问自动唤醒，一台机器塞得下好几个团队；
-- Agent 不止活在网页里：钉钉 / 飞书群里 `@` 它，回复回到那个群，上下文还是同一个。
+- **一个团队 = 一个 Agent 实例**（一个 compose 项目 / 一个 Helm release），卷隔离、上下文不串味；
+- **多个人共用同一个 Agent**，各有账号与角色，谁做了什么有审计；
+- **插件化扩展**：能力以 npm 包形态装进 profile，`apply(ctx)` 跑在 dsh 进程内，改完 `make reload` 十秒生效；
+- **Agent 不止活在网页里**：钉钉 / 飞书群里 `@` 它，回复回到那个群，上下文还是同一个；
+- 闲置自动休眠、访问自动唤醒，一台机器塞得下好几个团队。
 
 它不是又一个聊天前端，而是**一层运营系统**：镜像怎么发、团队怎么建、密钥怎么管、数据怎么活过重启。
+
+### 两个仓库
+
+| 仓库 | 放什么 | 给谁用 |
+| --- | --- | --- |
+| **本仓**（平台） | 镜像、profile、控制面、账号服务、助理、市场，**外加 6 个自研插件** | 想「一条命令把团队版 Agent 跑起来」 |
+| [dsh-plugins](https://github.com/zhang-zi-long/dsh-plugins) | 只有那 6 个插件包 | 已经有 dsh，只想装 `workspace-guard` / `changes-collector` |
+
+依赖是单向的：**插件仓不需要知道平台存在**，`dsh plugin add <目录>` 就能用；
+插件仍然在本仓开发和验证（行为测试要 dsh 容器与数据库夹具），
+用 `make mirror-plugins` 导出到插件仓，`make mirror-check` 在 CI 里防漂移。
+
+不用 git submodule 是刻意的：私有仓的 submodule 要额外配凭据，`git clone` 忘了 `--recurse-submodules`
+就构建失败——这是开源项目最常见的劝退点。
 
 ---
 
@@ -40,7 +54,7 @@
 
 如果你只是自己用，`npx` 跑一个 Agent 就够了。**一旦要给一个团队用**，会同时撞上四堵墙：
 
-| 你遇到的问题 | 裸跑一个 Agent 的做法 | Dockmaster 的做法 |
+| 你遇到的问题 | 裸跑一个 Agent 的做法 | dsh-platform 的做法 |
 | --- | --- | --- |
 | 多人共用一个会话 | 上下文互相污染，A 的代码进 B 的回答 | 一个团队一个实例，卷隔离；助理再按「群 / 单聊」拆成独立会话窗口 |
 | 没有账号体系 | 谁拿到 URL 谁就能用，删库也没人知道是谁 | 账号服务 + 团队角色 + 审计日志；dsh 自己的 token 关在反代后面 |
@@ -93,7 +107,7 @@
 需要 Docker（macOS / Linux 都行），以及 `make`。
 
 ```bash
-git clone https://github.com/zhang-zi-long/my-dsh.git dockmaster && cd dockmaster
+git clone https://github.com/zhang-zi-long/my-dsh.git dsh-platform && cd dsh-platform
 
 make seed      # 生成 accounts.json / nodes.json / .env（演示账号 admin / demo1234）
 make up        # 构建镜像并起 team-a → http://team-a.localhost:8080/
@@ -149,14 +163,14 @@ flowchart TB
 
 ## 和同类不是一层的东西
 
-| 项目 | 它解决什么 | 和 Dockmaster 的关系 |
+| 项目 | 它解决什么 | 和 dsh-platform 的关系 |
 | --- | --- | --- |
 | [Open WebUI](https://github.com/open-webui/open-webui) / [LibreChat](https://github.com/danny-avila/LibreChat) | 多模型聊天前端 | 它们替代 **UI**；本项目默认用 dsh 自己的 UI，重心在运营层 |
 | [Dify](https://github.com/langgenius/dify) / [n8n](https://github.com/n8n-io/n8n) | 编排工作流、搭 AI 应用 | 它们产出的应用可以被本平台的 Agent 当技能 / MCP 连接器调用 |
 | [Coder](https://github.com/coder/coder) / [code-server](https://github.com/coder/code-server) | 给每人一套云端 IDE | 形态最接近：同样是「一用户一实例 + 休眠 + 反代」，但对象是 IDE 而不是 Agent |
 | 直接跑 DeepSeek Harness | 单人用 Agent | 本项目在它之上补账号、多租户、IM 入口、持久化与运维 |
 
-**一句话**：Dockmaster 不重写 Agent，它做 Agent 的**物业**——门禁、水电、保洁、消防。
+**一句话**：dsh-platform 不重写 Agent，它做 Agent 的**物业**——门禁、水电、保洁、消防。
 
 ---
 
@@ -212,10 +226,13 @@ flowchart TB
 没有构建步骤：插件是纯 ESM，改完 `make reload` 就生效。自测是离线脚本，不联网、不依赖 docker、不碰生产库：
 
 ```bash
+make verify-all             # 15 个脚本一把跑（CI 跑的就是这个）
 make verify-assistants      # 助理调度：路由、幂等、失败兜底、思考过程落库（79 条）
 make verify-stream          # 钉钉 Stream：建连、探活、换票、去重（46 条）
 make verify-workspace-guard # 工作区落点与补登记（20 条）
-make verify-*               # 共 15 个脚本
+
+make mirror-plugins         # 把 plugins/ 导出到插件仓
+make mirror-check           # 只比对，不改文件（CI 用）
 ```
 
 CI 会在每个 PR 上跑全部自测 + 语法检查 + 密钥扫描，见 [.github/workflows/ci.yml](.github/workflows/ci.yml)。
@@ -233,7 +250,7 @@ CI 会在每个 PR 上跑全部自测 + 语法检查 + 密钥扫描，见 [.gith
 
 ## 名字
 
-`Dockmaster` = dock（码头 / 容器）+ master（调度）。船不会自己找泊位，Agent 也不该裸跑在服务器上。
+工作名暂定 `dsh-platform`，等品牌定下来会一次性替换（只改标题与包名，不动目录结构）。
 
 ## 许可
 
