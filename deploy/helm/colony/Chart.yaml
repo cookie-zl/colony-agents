@@ -1,5 +1,5 @@
 apiVersion: v2
-name: my-dsh
+name: colony
 description: DeepSeek Harness 内部平台：单实例 Web 服务 + 固化插件 profile
 type: application
 version: 0.1.0

@@ -7,7 +7,7 @@
 ```
 [代码源：这个仓库] → [阶段1 构建：deploy/zadig/build.sh] → [阶段2 部署：Helm Chart]
                               ↓ 产物 image.env
-                      IMAGE=harbor.../dsh/my-dsh:<sha>
+                      IMAGE=harbor.../dsh/colony:<sha>
 ```
 
 只有两个阶段，刻意做薄：构建只做「打镜像并推」，部署只做「helm upgrade」。任何额外的逻辑都会让回滚变难。
@@ -24,7 +24,7 @@ deploy/zadig/build.sh
 
 | 变量 | 必填 | 说明 |
 | --- | --- | --- |
-| `IMAGE_REPOSITORY` | 是 | 如 `harbor.example.com/dsh/my-dsh`，不含 tag |
+| `IMAGE_REPOSITORY` | 是 | 如 `harbor.example.com/dsh/colony`，不含 tag |
 | `IMAGE_TAG` | 否 | 默认取 git 短 sha。**别用 latest**，回滚时你会后悔 |
 | `DSH_VERSION` | 否 | 默认读 `Chart.yaml` 的 `appVersion` |
 | `NPM_REGISTRY` | 否 | 公司有内网 npm 源就换成内网源，比走公网稳 |
@@ -34,9 +34,9 @@ deploy/zadig/build.sh
 脚本产出 `image.env`：
 
 ```
-IMAGE_REPOSITORY=harbor.example.com/dsh/my-dsh
+IMAGE_REPOSITORY=harbor.example.com/dsh/colony
 IMAGE_TAG=a1b2c3d
-IMAGE=harbor.example.com/dsh/my-dsh:a1b2c3d
+IMAGE=harbor.example.com/dsh/colony:a1b2c3d
 DSH_VERSION=0.2.1-rc.5
 ```
 
@@ -46,13 +46,13 @@ DSH_VERSION=0.2.1-rc.5
 
 ## 阶段 2：部署（Helm）
 
-Chart 在 `deploy/helm/my-dsh`。Zadig 的 Helm 部署阶段填：
+Chart 在 `deploy/helm/colony`。Zadig 的 Helm 部署阶段填：
 
 | 字段 | 值 |
 | --- | --- |
-| Chart 路径 | `deploy/helm/my-dsh` |
-| values 文件 | `deploy/helm/my-dsh/values.yaml` + 你的 `values-<env>.yaml` |
-| release 名 | `my-dsh` |
+| Chart 路径 | `deploy/helm/colony` |
+| values 文件 | `deploy/helm/colony/values.yaml` + 你的 `values-<env>.yaml` |
+| release 名 | `colony` |
 | 命名空间 | 如 `ai-tools` |
 | 变量覆盖 | 见下表 |
 
@@ -72,9 +72,9 @@ Chart 在 `deploy/helm/my-dsh`。Zadig 的 Helm 部署阶段填：
 Zadig 的「Kubernetes YAML 部署」同样能用：本地渲染一份清单再提交给 Zadig 做变量替换。
 
 ```bash
-helm template my-dsh deploy/helm/my-dsh \
+helm template colony deploy/helm/colony \
   --namespace ai-tools \
-  --set image.repository=harbor.example.com/dsh/my-dsh \
+  --set image.repository=harbor.example.com/dsh/colony \
   --set image.tag=a1b2c3d \
   --set ingress.host=dsh.example.com \
   > deploy/zadig/rendered.yaml
@@ -129,8 +129,8 @@ dsh:
 
 ```bash
 # Helm 侧
-helm history my-dsh -n ai-tools
-helm rollback my-dsh 3 -n ai-tools
+helm history colony -n ai-tools
+helm rollback colony 3 -n ai-tools
 
 # 或 Zadig 里重跑一次历史发布单
 ```
@@ -156,7 +156,7 @@ strategy:
 Zadig 部署完成后 Pod 是 Running，不代表服务可用。真正的验收是三行：
 
 ```bash
-kubectl -n ai-tools logs deploy/my-dsh | grep -i landlock        # 沙箱生效
-kubectl -n ai-tools exec deploy/my-dsh -- dsh --profile web --dump-config | grep '^# =='  # profile 对得上
+kubectl -n ai-tools logs deploy/colony | grep -i landlock        # 沙箱生效
+kubectl -n ai-tools exec deploy/colony -- dsh --profile web --dump-config | grep '^# =='  # profile 对得上
 curl -s -o /dev/null -w '%{http_code}\n' https://dsh.example.com/  # 期望 401（没带 token），不是 502
 ```

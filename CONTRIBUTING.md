@@ -8,7 +8,7 @@
 需要 Docker 与本机 Docker（`verify-*` 脚本会用到，大部分不需要）。Node ≥ 22。
 
 ```bash
-git clone https://github.com/zhang-zi-long/my-dsh.git && cd my-dsh
+git clone https://github.com/zhang-zi-long/colony.git && cd colony
 make seed     # 生成运行时配置（accounts.json / nodes.json / .env）
 make up       # 起 team-a
 ```

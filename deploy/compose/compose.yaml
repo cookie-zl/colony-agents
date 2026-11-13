@@ -1,7 +1,7 @@
-name: my-dsh
+name: colony
 
 # 本地 / 单机 VM 跑法：一个 dsh 容器 + 一个 Caddy 入口。
-# 用法见 docs/01-本地运行.md。生产走 Helm（deploy/helm/my-dsh），不要用这个。
+# 用法见 docs/01-本地运行.md。生产走 Helm（deploy/helm/colony），不要用这个。
 
 x-dsh-env: &dsh-env
   # 模型请求走控制面网关：baseURL 指过去，DEEPSEEK_API_KEY 里放的是「网关 token」，
@@ -34,7 +34,7 @@ services:
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
         APT_MIRROR: ${APT_MIRROR:-mirrors.aliyun.com}
         PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
-    image: my-dsh:${DSH_VERSION:-0.2.1-rc.5}
+    image: colony:${DSH_VERSION:-0.2.1-rc.5}
     restart: unless-stopped
     # dsh 会 dispose 整棵 root 再退出，给足时间，别让 docker 直接 SIGKILL
     stop_grace_period: 30s
@@ -80,7 +80,7 @@ services:
   auth:
     build:
       context: ../auth
-    image: my-dsh-auth:dev
+    image: colony-auth:dev
     restart: unless-stopped
     environment:
       DSH_TEAM: ${DSH_TEAM:-team-a}

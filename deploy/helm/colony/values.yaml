@@ -1,4 +1,4 @@
-# my-dsh 的默认值。生产环境请用单独的 values-prod.yaml 覆盖，不要改这个文件。
+# colony 的默认值。生产环境请用单独的 values-prod.yaml 覆盖，不要改这个文件。
 #
 # 硬约束（改了会坏，不是调优项）：
 #   replicaCount 只能是 1，accessMode 只能是 ReadWriteOnce，strategy 只能是 Recreate。
@@ -8,7 +8,7 @@ nameOverride: ""
 fullnameOverride: ""
 
 image:
-  repository: harbor.example.com/dsh/my-dsh
+  repository: harbor.example.com/dsh/colony
   # 留空则用 Chart.appVersion；Zadig 每次注入 git sha 作为 tag
   tag: ""
   digest: ""

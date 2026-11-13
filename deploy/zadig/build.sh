@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# Zadig「构建」阶段调用的脚本：出一个带 tag 的 my-dsh 镜像并推到公司仓库。
+# Zadig「构建」阶段调用的脚本：出一个带 tag 的 colony 镜像并推到公司仓库。
 #
 # 用法：
-#   IMAGE_REPOSITORY=harbor.example.com/dsh/my-dsh ./deploy/zadig/build.sh
+#   IMAGE_REPOSITORY=harbor.example.com/dsh/colony ./deploy/zadig/build.sh
 #
 # 环境变量（全部可用 Zadig 的构建变量注入）：
 #   IMAGE_REPOSITORY  必填，镜像仓库地址（不含 tag）
@@ -21,10 +21,10 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 cd "$ROOT"
 
-: "${IMAGE_REPOSITORY:?需要设置 IMAGE_REPOSITORY，例如 harbor.example.com/dsh/my-dsh}"
+: "${IMAGE_REPOSITORY:?需要设置 IMAGE_REPOSITORY，例如 harbor.example.com/dsh/colony}"
 
 IMAGE_TAG=${IMAGE_TAG:-$(git rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M)}
-DSH_VERSION=${DSH_VERSION:-$(sed -n 's/^appVersion:[[:space:]]*"\(.*\)"/\1/p' deploy/helm/my-dsh/Chart.yaml)}
+DSH_VERSION=${DSH_VERSION:-$(sed -n 's/^appVersion:[[:space:]]*"\(.*\)"/\1/p' deploy/helm/colony/Chart.yaml)}
 NPM_REGISTRY=${NPM_REGISTRY:-https://registry.npmmirror.com}
 APT_MIRROR=${APT_MIRROR:-mirrors.aliyun.com}
 PUSH=${PUSH:-true}

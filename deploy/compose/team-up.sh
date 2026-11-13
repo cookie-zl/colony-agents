@@ -27,7 +27,7 @@ ORCH_DIR="$HERE/../orchestrator"
 
 # 与 Makefile 保持一致；只影响「镜像不存在时要不要现场构建」
 DSH_VERSION="${DSH_VERSION:-0.2.1-rc.5}"
-IMAGE="my-dsh:${DSH_VERSION}"
+IMAGE="colony:${DSH_VERSION}"
 
 # 归档用的临时容器：只需要 tar，复用已拉过的镜像，别为了一次打包再拉一个新镜像
 ARCHIVE_IMAGE="${ARCHIVE_IMAGE:-caddy:2-alpine}"
@@ -66,7 +66,8 @@ ensure_secret() {
 # dsh 的 token 每次启动都变，账号服务靠这个文件把「登录过的浏览器」换成 dsh Cookie
 sync_token() {
 	team="$1"
-	for _ in $(seq 1 40); do
+	# 60 秒：镜像刚换、插件首次装载时，token 那行可能比 20 秒晚不少（实测踩过）
+	for _ in $(seq 1 60); do
 		token=$(docker compose -f "$FILE" -p "dsh-$team" logs --no-log-prefix dsh 2>/dev/null |
 			grep -o 'token=[A-Za-z0-9_-]*' | tail -1 | cut -d= -f2 || true)
 		if [ -n "$token" ]; then
@@ -76,7 +77,7 @@ sync_token() {
 		fi
 		sleep 1
 	done
-	echo "警告: 20 秒内没抓到 dsh token，进入实例时会提示「token 未同步」，稍后跑 ./team-up.sh sync $team" >&2
+	echo "警告: 60 秒内没抓到 dsh token，进入实例时会提示「token 未同步」，稍后跑 ./team-up.sh sync $team" >&2
 	return 1
 }
 

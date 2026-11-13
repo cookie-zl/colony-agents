@@ -51,11 +51,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      - name: gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0 # 要扫历史：凭据删掉了也还在提交里
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 扫文件与历史（规则与白名单在仓库里）
+        run: node deploy/orchestrator/scan-secrets.mjs --history
       - name: 运行时文件不能进版本库
         run: |
           set -e

@@ -1,9 +1,9 @@
 {{/* 名称与标签 */}}
-{{- define "my-dsh.name" -}}
+{{- define "colony.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{- define "my-dsh.fullname" -}}
+{{- define "colony.fullname" -}}
 {{- if .Values.fullnameOverride -}}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
 {{- else -}}
@@ -16,20 +16,20 @@
 {{- end -}}
 {{- end -}}
 
-{{- define "my-dsh.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "my-dsh.name" . }}
+{{- define "colony.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "colony.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
-{{- define "my-dsh.labels" -}}
+{{- define "colony.labels" -}}
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
-{{ include "my-dsh.selectorLabels" . }}
+{{ include "colony.selectorLabels" . }}
 app.kubernetes.io/component: web
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
 {{/* 镜像引用：digest 优先 */}}
-{{- define "my-dsh.image" -}}
+{{- define "colony.image" -}}
 {{- if .Values.image.digest -}}
 {{- printf "%s@%s" .Values.image.repository .Values.image.digest -}}
 {{- else -}}
@@ -38,16 +38,16 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
 {{/* 模型凭据的 Secret 名 */}}
-{{- define "my-dsh.secretName" -}}
+{{- define "colony.secretName" -}}
 {{- if .Values.secrets.existingSecret -}}
 {{- .Values.secrets.existingSecret -}}
 {{- else -}}
-{{- printf "%s-secret" (include "my-dsh.fullname" .) -}}
+{{- printf "%s-secret" (include "colony.fullname" .) -}}
 {{- end -}}
 {{- end -}}
 
 {{/* 浏览器可见地址：没显式给就用 ingress 拼 */}}
-{{- define "my-dsh.publicUrl" -}}
+{{- define "colony.publicUrl" -}}
 {{- if .Values.dsh.publicUrl -}}
 {{- .Values.dsh.publicUrl -}}
 {{- else if .Values.ingress.enabled -}}

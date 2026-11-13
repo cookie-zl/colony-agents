@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 把本仓 `plugins/` 导出成一个可独立安装的插件仓（默认 `../dsh-plugins`）。
+ * 把本仓 `plugins/` 导出成一个可独立安装的插件仓（默认 `../colony-plugins`）。
  *
  * 为什么要这一步：插件有两种使用场景——「平台的镜像里内置」和「我自己有 dsh，只想装一个」。
  * 后者不该被要求 clone 整个平台。但插件又必须跟平台一起开发和验证（行为测试要用 dsh 容器
@@ -14,7 +14,7 @@
  * 不做的事：不 git commit、不 push。导出后由你在插件仓 review 再提交。
  *
  * 用法：
- *   node deploy/orchestrator/mirror-plugins.mjs                     # 导出到 ../dsh-plugins
+ *   node deploy/orchestrator/mirror-plugins.mjs                     # 导出到 ../colony-plugins
  *   node deploy/orchestrator/mirror-plugins.mjs --to ../my-plugins # 指定目标
  *   node deploy/orchestrator/mirror-plugins.mjs --check             # 只比对，不写（CI 用）
  *
@@ -28,12 +28,12 @@ import { join, resolve } from 'node:path'
 const HERE = import.meta.dirname
 const REPO = resolve(HERE, '..', '..')
 const SRC = join(REPO, 'plugins')
-const PLUGINS_REPO_URL = 'https://github.com/zhang-zi-long/dsh-plugins.git'
+const PLUGINS_REPO_URL = 'https://github.com/zhang-zi-long/colony-plugins.git'
 
 const argv = process.argv.slice(2)
 const CHECK = argv.includes('--check')
 const toIndex = argv.indexOf('--to')
-const DST_ROOT = resolve(toIndex >= 0 ? argv[toIndex + 1] : join(REPO, '..', 'dsh-plugins'))
+const DST_ROOT = resolve(toIndex >= 0 ? argv[toIndex + 1] : join(REPO, '..', 'colony-plugins'))
 const DST = join(DST_ROOT, 'packages')
 
 /**

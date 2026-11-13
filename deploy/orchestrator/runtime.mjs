@@ -17,7 +17,7 @@ import { materialize, putFile } from './objects.mjs'
 
 export const TEAM_UP = resolve(REPO, 'deploy/compose/team-up.sh')
 export const TEAM_COMPOSE = resolve(REPO, 'deploy/compose/compose.yaml')
-export const HELM_CHART = resolve(REPO, 'deploy/helm/my-dsh')
+export const HELM_CHART = resolve(REPO, 'deploy/helm/colony')
 export const HELM_BASE_VALUES = resolve(REPO, 'deploy/helm/values-team.yaml')
 const HELM_VALUES_DIR = resolve(REPO, 'deploy/orchestrator/helm-values')
 

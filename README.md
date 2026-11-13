@@ -1,6 +1,6 @@
 <div align="center">
 
-# dsh platform
+# Colony
 
 **把 AI Agent 变成团队基础设施**
 
@@ -39,7 +39,7 @@ dsh 本身是单人视角的：一个进程、一份会话、一个 `$DSH_HOME`�
 | 仓库 | 放什么 | 给谁用 |
 | --- | --- | --- |
 | **本仓**（平台） | 镜像、profile、控制面、账号服务、助理、市场，**外加 6 个自研插件** | 想「一条命令把团队版 Agent 跑起来」 |
-| [dsh-plugins](https://github.com/zhang-zi-long/dsh-plugins) | 只有那 6 个插件包 | 已经有 dsh，只想装 `workspace-guard` / `changes-collector` |
+| [colony-plugins](https://github.com/zhang-zi-long/colony-plugins) | 只有那 6 个插件包 | 已经有 dsh，只想装 `workspace-guard` / `changes-collector` |
 
 依赖是单向的：**插件仓不需要知道平台存在**，`dsh plugin add <目录>` 就能用；
 插件仍然在本仓开发和验证（行为测试要 dsh 容器与数据库夹具），
@@ -54,7 +54,7 @@ dsh 本身是单人视角的：一个进程、一份会话、一个 `$DSH_HOME`�
 
 如果你只是自己用，`npx` 跑一个 Agent 就够了。**一旦要给一个团队用**，会同时撞上四堵墙：
 
-| 你遇到的问题 | 裸跑一个 Agent 的做法 | dsh-platform 的做法 |
+| 你遇到的问题 | 裸跑一个 Agent 的做法 | Colony 的做法 |
 | --- | --- | --- |
 | 多人共用一个会话 | 上下文互相污染，A 的代码进 B 的回答 | 一个团队一个实例，卷隔离；助理再按「群 / 单聊」拆成独立会话窗口 |
 | 没有账号体系 | 谁拿到 URL 谁就能用，删库也没人知道是谁 | 账号服务 + 团队角色 + 审计日志；dsh 自己的 token 关在反代后面 |
@@ -107,7 +107,7 @@ dsh 本身是单人视角的：一个进程、一份会话、一个 `$DSH_HOME`�
 需要 Docker（macOS / Linux 都行），以及 `make`。
 
 ```bash
-git clone https://github.com/zhang-zi-long/my-dsh.git dsh-platform && cd dsh-platform
+git clone https://github.com/zhang-zi-long/colony.git && cd colony
 
 make seed      # 生成 accounts.json / nodes.json / .env（演示账号 admin / demo1234）
 make up        # 构建镜像并起 team-a → http://team-a.localhost:8080/
@@ -132,7 +132,7 @@ deploy/
   auth/                     # 账号服务：登录、门户、成员、审计（零依赖 Node）
   orchestrator/             # 控制面：建团队、休眠唤醒、对账、助理、指标
   market/                   # 技能与连接器市场
-  helm/my-dsh/              # K8s
+  helm/colony/              # K8s
 docs/                       # 20 篇设计记录 + 11 篇功能清单
 ```
 
@@ -163,14 +163,14 @@ flowchart TB
 
 ## 和同类不是一层的东西
 
-| 项目 | 它解决什么 | 和 dsh-platform 的关系 |
+| 项目 | 它解决什么 | 和 Colony 的关系 |
 | --- | --- | --- |
 | [Open WebUI](https://github.com/open-webui/open-webui) / [LibreChat](https://github.com/danny-avila/LibreChat) | 多模型聊天前端 | 它们替代 **UI**；本项目默认用 dsh 自己的 UI，重心在运营层 |
 | [Dify](https://github.com/langgenius/dify) / [n8n](https://github.com/n8n-io/n8n) | 编排工作流、搭 AI 应用 | 它们产出的应用可以被本平台的 Agent 当技能 / MCP 连接器调用 |
 | [Coder](https://github.com/coder/coder) / [code-server](https://github.com/coder/code-server) | 给每人一套云端 IDE | 形态最接近：同样是「一用户一实例 + 休眠 + 反代」，但对象是 IDE 而不是 Agent |
 | 直接跑 DeepSeek Harness | 单人用 Agent | 本项目在它之上补账号、多租户、IM 入口、持久化与运维 |
 
-**一句话**：dsh-platform 不重写 Agent，它做 Agent 的**物业**——门禁、水电、保洁、消防。
+**一句话**：Colony 不重写 Agent，它做 Agent 的**物业**——门禁、水电、保洁、消防。
 
 ---
 
@@ -250,7 +250,9 @@ CI 会在每个 PR 上跑全部自测 + 语法检查 + 密钥扫描，见 [.gith
 
 ## 名字
 
-工作名暂定 `dsh-platform`，等品牌定下来会一次性替换（只改标题与包名，不动目录结构）。
+`Colony`：一个巢、一群个体、各司其职。团队共用一个 Agent，插件是分工——不是每个人各养一个。
+
+名字同时挂在两个仓和一个 npm scope 上：`colony` / `colony-plugins` / `@colony/*`。
 
 ## 许可
 

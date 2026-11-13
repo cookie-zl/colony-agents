@@ -32,7 +32,7 @@ export const SESSION_ROOT = process.env.CONSOLE_SESSION_ROOT || '/home/dsh/.dsh/
 /** 挂卷时挂到同一个位置，路径就不用做任何翻译（--volumes-from 与 -v 都按它挂）。 */
 const DSH_HOME = '/home/dsh/.dsh'
 /** 容器不存在（down 过）时用来挂卷的镜像。 */
-const HELPER_IMAGE = process.env.CONSOLE_HELPER_IMAGE || 'my-dsh:dev'
+const HELPER_IMAGE = process.env.CONSOLE_HELPER_IMAGE || 'colony:dev'
 /** 增量小于这个值就先攒着：一次 append 几十字节也建一个对象，对象数会失控。 */
 export const MIN_SEGMENT_BYTES = Number(process.env.CONSOLE_SEGMENT_BYTES || 262_144)
 /**

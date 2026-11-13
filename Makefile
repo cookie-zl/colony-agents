@@ -2,7 +2,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 DSH_VERSION ?= 0.2.1-rc.5
-IMAGE       ?= my-dsh:$(DSH_VERSION)
+IMAGE       ?= colony:$(DSH_VERSION)
 # 国内构建建议设成 mirrors.aliyun.com；官方源在部分网络下慢到不可用
 APT_MIRROR  ?= mirrors.aliyun.com
 NPM_REGISTRY ?= https://registry.npmmirror.com
@@ -24,7 +24,7 @@ export DSH_TRUSTED_HOST ?= $(TEAM).localhost
 export DSH_PUBLIC_URL ?= http://$(TEAM).localhost:$(TEAM_PORT)/
 export EDGE_PORT ?= $(TEAM_PORT)
 
-HELM_CHART  := deploy/helm/my-dsh
+HELM_CHART  := deploy/helm/colony
 # 没装 helm 也能校验：走容器里的 helm。本机已装 helm 时可用 HELM=helm 覆盖。
 HELM        ?= docker run --rm -v $(CURDIR)/$(HELM_CHART):/apps alpine/helm:3.16.3
 
@@ -111,6 +111,11 @@ verify-all: ## 跑全部离线自测（15 个脚本，失败即退出）
 	[ -n "$$skipped" ] && echo "已跳过不存在依赖的自测：$$skipped（需要时先跑 make verify-profile）"; \
 	if [ $$fail -ne 0 ]; then echo "自测有失败项"; exit 1; fi; echo "全部自测通过"
 
+# 凭据自检：规则与白名单都在仓库里（scan-secrets.mjs），本地与 CI 跑同一份。
+.PHONY: scan-secrets
+scan-secrets: ## 扫已入库文件 + git 历史里的疑似凭据
+	@node deploy/orchestrator/scan-secrets.mjs --history
+
 .PHONY: shell
 shell: ## 进容器
 	$(COMPOSE) exec dsh sh
@@ -127,7 +132,7 @@ pack: ## 本地打出插件 tarball 到 dist/（仅用于检查产物，镜像�
 # ---------- Helm ----------
 .PHONY: helm-template
 helm-template: ## 渲染 Helm 模板（本地校验用）
-	$(HELM) template my-dsh /apps --namespace ai-tools
+	$(HELM) template colony /apps --namespace ai-tools
 
 .PHONY: helm-lint
 helm-lint: ## Helm lint
@@ -330,7 +335,7 @@ verify-objects: ## 自测对象层：寻址/去重/取回一致 + 上传失败�
 verify-profile: ## 自测「agent 参数跨重启保留 + 会话 cwd 补建」（借用运行镜像里的 yaml）
 	@[ -f .verify-yaml/package.json ] || ( \
 	  mkdir -p .verify-yaml/node_modules && \
-	  docker run --rm --entrypoint sh "my-dsh:$${DSH_VERSION:-0.2.1-rc.5}" \
+	  docker run --rm --entrypoint sh "colony:$${DSH_VERSION:-0.2.1-rc.5}" \
 	    -c 'cd /usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules && tar cf - yaml' \
 	    | tar xf - -C .verify-yaml/node_modules && \
 	  printf '{"name":"verify-yaml"}\n' > .verify-yaml/package.json && \
@@ -398,10 +403,10 @@ accounts-dry: ## 只看会往 users/teams/team_members 写什么，不落库
 # ---------- 插件分发 ----------
 # 本仓的 plugins/ 是上游，插件仓是导出形态（给「我自己有 dsh，只想装一个插件」的人）。
 # 不用 submodule：私有仓的 submodule 要额外配凭据，clone 忘了 --recurse 就构建失败。
-PLUGINS_REPO ?= ../dsh-plugins
+PLUGINS_REPO ?= ../colony-plugins
 
 .PHONY: mirror-plugins
-mirror-plugins: ## 把 plugins/ 导出到插件仓（默认 ../dsh-plugins，可用 PLUGINS_REPO 覆盖）
+mirror-plugins: ## 把 plugins/ 导出到插件仓（默认 ../colony-plugins，可用 PLUGINS_REPO 覆盖）
 	@node deploy/orchestrator/mirror-plugins.mjs --to $(PLUGINS_REPO)
 
 .PHONY: mirror-check

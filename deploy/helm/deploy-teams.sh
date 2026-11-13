@@ -11,7 +11,7 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CHART="$HERE/my-dsh"
+CHART="$HERE/colony"
 TEAMS="$HERE/teams.txt"
 NAMESPACE="${NAMESPACE:-ai-tools}"
 HELM="${HELM:-helm}"

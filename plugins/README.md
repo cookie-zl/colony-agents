@@ -12,7 +12,7 @@ cp -r plugins/hello-dsh plugins/my-plugin
 
 然后按顺序改：
 
-1. `plugins/my-plugin/package.json` → `name`（团队 scope，如 `@my-dsh/my-plugin`）、`version`、`description`
+1. `plugins/my-plugin/package.json` → `name`（团队 scope，如 `@colony/my-plugin`）、`version`、`description`
 2. `plugins/my-plugin/cordis.patch.yml` → `id` 和 `name`
 3. `plugins/my-plugin/index.js` → 实现；多个行就拆成多个文件，patch 里一行一个
 
