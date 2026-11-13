@@ -67,17 +67,30 @@ ensure_secret() {
 sync_token() {
 	team="$1"
 	# 60 秒：镜像刚换、插件首次装载时，token 那行可能比 20 秒晚不少（实测踩过）
-	for _ in $(seq 1 60); do
-		token=$(docker compose -f "$FILE" -p "dsh-$team" logs --no-log-prefix dsh 2>/dev/null |
-			grep -o 'token=[A-Za-z0-9_-]*' | tail -1 | cut -d= -f2 || true)
-		if [ -n "$token" ]; then
-			printf '%s' "$token" >"$AUTH_DIR/tokens/$team"
-			echo "已同步 dsh token → deploy/auth/tokens/$team"
-			return 0
-		fi
-		sleep 1
-	done
-	echo "警告: 60 秒内没抓到 dsh token，进入实例时会提示「token 未同步」，稍后跑 ./team-up.sh sync $team" >&2
+	find_token() {
+		for _ in $(seq 1 60); do
+			token=$(docker compose -f "$FILE" -p "dsh-$team" logs --no-log-prefix dsh 2>/dev/null |
+				grep -o 'token=[A-Za-z0-9_-]*' | tail -1 | cut -d= -f2 || true)
+			[ -n "$token" ] && return 0
+			sleep 1
+		done
+		return 1
+	}
+	if find_token; then
+		printf '%s' "$token" >"$AUTH_DIR/tokens/$team"
+		echo "已同步 dsh token → deploy/auth/tokens/$team"
+		return 0
+	fi
+	# 兜底：dsh 首启时那条 "dsh web: <url>?token=…" 偶发不打印（上游时序问题），
+	# 重启一次就会打印。不重启的话整个团队会一直 401，用户只会看到「token 未同步」。
+	echo "dsh 未打印 token，重启一次再试…" >&2
+	docker compose -f "$FILE" -p "dsh-$team" restart dsh >/dev/null 2>&1 || true
+	if find_token; then
+		printf '%s' "$token" >"$AUTH_DIR/tokens/$team"
+		echo "已同步 dsh token → deploy/auth/tokens/$team（重启后拿到）"
+		return 0
+	fi
+	echo "警告: 两次都没抓到 dsh token，进入实例时会提示「token 未同步」，稍后跑 ./team-up.sh sync $team" >&2
 	return 1
 }
 
