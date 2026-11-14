@@ -43,7 +43,7 @@ how model keys are stored, how data outlives a `docker rm`.
 | Repo | Contains | For |
 | --- | --- | --- |
 | **this one** (platform) | image, profile, control plane, account service, assistants, market — plus the six plugins | running the team edition with one command |
-| [colony-plugins](https://github.com/zhang-zi-long/colony-plugins) | just the six plugin packages | you already run dsh and only want, say, `workspace-guard` |
+| [colony-dsh-plugins](https://github.com/cookie-zl/colony-dsh-plugins) | just the six plugin packages | you already run dsh and only want, say, `workspace-guard` |
 
 The dependency is one-way: the plugin repo does not know the platform exists. Plugins are still developed and
 tested here (their behaviour tests need a dsh container and DB fixtures), then exported with
@@ -57,7 +57,7 @@ No git submodules on purpose: private submodules need extra credentials, and a `
 Requires Docker and `make`.
 
 ```bash
-git clone https://github.com/zhang-zi-long/colony.git && cd colony
+git clone https://github.com/cookie-zl/colony.git && cd colony
 make seed      # generate accounts.json / nodes.json / .env (demo login admin / demo1234)
 make up        # build image, start team-a → http://team-a.localhost:8080/
 ```

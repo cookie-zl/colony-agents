@@ -403,10 +403,10 @@ accounts-dry: ## 只看会往 users/teams/team_members 写什么，不落库
 # ---------- 插件分发 ----------
 # 本仓的 plugins/ 是上游，插件仓是导出形态（给「我自己有 dsh，只想装一个插件」的人）。
 # 不用 submodule：私有仓的 submodule 要额外配凭据，clone 忘了 --recurse 就构建失败。
-PLUGINS_REPO ?= ../colony-plugins
+PLUGINS_REPO ?= ../colony-dsh-plugins
 
 .PHONY: mirror-plugins
-mirror-plugins: ## 把 plugins/ 导出到插件仓（默认 ../colony-plugins，可用 PLUGINS_REPO 覆盖）
+mirror-plugins: ## 把 plugins/ 导出到插件仓（默认 ../colony-dsh-plugins，可用 PLUGINS_REPO 覆盖）
 	@node deploy/orchestrator/mirror-plugins.mjs --to $(PLUGINS_REPO)
 
 .PHONY: mirror-check

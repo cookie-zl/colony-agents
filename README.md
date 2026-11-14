@@ -39,7 +39,7 @@ dsh 本身是单人视角的：一个进程、一份会话、一个 `$DSH_HOME`�
 | 仓库 | 放什么 | 给谁用 |
 | --- | --- | --- |
 | **本仓**（平台） | 镜像、profile、控制面、账号服务、助理、市场，**外加 6 个自研插件** | 想「一条命令把团队版 Agent 跑起来」 |
-| [colony-plugins](https://github.com/zhang-zi-long/colony-plugins) | 只有那 6 个插件包 | 已经有 dsh，只想装 `workspace-guard` / `changes-collector` |
+| [colony-dsh-plugins](https://github.com/cookie-zl/colony-dsh-plugins) | 只有那 6 个插件包 | 已经有 dsh，只想装 `workspace-guard` / `changes-collector` |
 
 依赖是单向的：**插件仓不需要知道平台存在**，`dsh plugin add <目录>` 就能用；
 插件仍然在本仓开发和验证（行为测试要 dsh 容器与数据库夹具），
@@ -107,7 +107,7 @@ dsh 本身是单人视角的：一个进程、一份会话、一个 `$DSH_HOME`�
 需要 Docker（macOS / Linux 都行），以及 `make`。
 
 ```bash
-git clone https://github.com/zhang-zi-long/colony.git && cd colony
+git clone https://github.com/cookie-zl/colony.git && cd colony
 
 make seed      # 生成 accounts.json / nodes.json / .env（演示账号 admin / demo1234）
 make up        # 构建镜像并起 team-a → http://team-a.localhost:8080/
@@ -253,7 +253,7 @@ CI 会在每个 PR 上跑全部自测 + 语法检查 + 密钥扫描，见 [.gith
 
 `Colony`：一个巢、一群个体、各司其职。团队共用一个 Agent，插件是分工——不是每个人各养一个。
 
-名字同时挂在两个仓和一个 npm scope 上：`colony` / `colony-plugins` / `@colony/*`。
+名字同时挂在两个仓和一个 npm scope 上：`colony` / `colony-dsh-plugins` / `@colony/*`。
 
 ## 许可
 
