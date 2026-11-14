@@ -9,7 +9,7 @@
  *
  * DSH_YAML_ROOT 指向一个能 require 到 `yaml` 的目录（镜像里是 dsh 的 node_modules），
  * 没有就用镜像导出的那份：
- *   docker run --rm --entrypoint sh colony:0.2.1-rc.5 \
+ *   docker run --rm --entrypoint sh colony-agents:0.2.1-rc.5 \
  *     -c 'cd /usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules && tar cf - yaml' \
  *     | tar xf - -C /tmp/yamltest/node_modules
  */

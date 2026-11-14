@@ -4,6 +4,22 @@
 
 ## 未发布
 
+### 改名：产品名统一为 Colony Agents
+
+之前仓库叫 `colony-agents`、产品叫 `Colony`，两套名字容易混。现在全部统一，升级时注意：
+
+| 项 | 旧 | 新 |
+| --- | --- | --- |
+| 镜像 | `colony:<ver>` | `colony-agents:<ver>` |
+| 账号服务镜像 | `colony-auth:dev` | `colony-agents-auth:dev` |
+| npm 包 | `@colony/dsh-*` | `@colony-agents/dsh-*` |
+| Helm chart | `deploy/helm/colony` | `deploy/helm/colony-agents` |
+| compose 项目名 | `colony` | `colony-agents` |
+| 仓库 | `cookie-zl/colony` | `cookie-zl/colony-agents`（旧地址 301） |
+
+`team-up.sh` / `make up` 一直用 `-p dsh-<team>`，所以按团队起的实例**卷名不变、数据不受影响**；
+只有直接用 `docker compose` 默认项目名起过的人才需要迁一下卷。
+
 ### 计划
 
 - 飞书 Stream 长连接（现在只支持 HTTP 回调，需要公网可达）

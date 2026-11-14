@@ -1,12 +1,12 @@
 <div align="center">
 
-# Colony
+# Colony Agents
 
-**给公司配一支数字员工队伍**
+**把 dsh 部署到云上，做成团队共用的 Agent 基础设施**
 
-云上部署一套 dsh，全团队共用——一个团队一个隔离实例；
-技能与 MCP 走市场、带版本、按团队分发；
-网页里能对话，群里能 `@`，每个数字员工有自己的岗位与人设。
+一套镜像起一个团队实例：租户隔离、账号准入、闲置休眠、会话不丢；
+技能与 MCP 走市场，带版本、按团队分发；
+网页里能对话，钉钉 / 飞书群里能 `@`，还能按岗位配成数字员工。
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-3c873a.svg)](https://nodejs.org)
@@ -22,11 +22,20 @@
 
 ## 这是什么
 
-一句话：**把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（下称 dsh）部署成一台团队共用的 Agent 主机，再按岗位配成一支数字员工队伍。**
+一句话：**把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（下称 dsh）部署到云上，做成一套多租户的 Agent 基础设施——团队共用、能力可装、群里可用。**
+
+它同时是四件事，少一件就不像一个能交给公司用的平台：
+
+| 维度 | 具体是什么 |
+| --- | --- |
+| **云上部署** | 一套镜像 + 一份 profile：`make up` 起单机，Helm 上 K8s。一个团队一个实例，不是「一个进程里塞多个团队」 |
+| **团队与租户** | 账号、角色、准入、审计；卷 / 子域 / 数据 / 密钥全隔离，配额与休眠按团队算 |
+| **能力分发** | 技能与 MCP 进市场，带版本与安装台账，按团队分发，支持点对点分享 |
+| **使用入口** | 网页对话、钉钉 Stream / 飞书回调；同一个会话，还能按岗位配多个数字员工 |
 
 dsh 本身是单人视角的：一个进程、一份会话、一个 `$DSH_HOME`。一个人用很顺手，
 交给一个团队就会撞墙——谁都能进、会话互相污染、能力散落在各自机器上、机器不敢重启。
-本项目补的就是它外面那一层：**租户、能力分发、IM 入口、数据持久化**。
+本项目补的就是它外面那一层。
 
 它不重写 Agent，也不做新的聊天前端。它是 Agent 的**物业**——门禁、水电、保洁、消防。
 
@@ -75,7 +84,7 @@ dsh 本身是单人视角的：一个进程、一份会话、一个 `$DSH_HOME`�
 | 分发 | 三种可见性：公共（全员可装）、团队私有、**点对点分享**（对方可以接收或拒收） |
 | 凭据 | MCP 需要的 env（如 `GITHUB_TOKEN`）在安装时填，落进**团队自己的卷**，不进控制面日志 |
 | 隔离 | 每个团队一份台账，卸载只影响自己；市场里的私有包别的团队看不到 |
-| 真相在库里 | 技能不从磁盘读：`@colony/dsh-market-skill` 运行时向控制面拉，多文件包按 `<name>@<version>-<digest>` 物化并按 digest 判重——所以「门户里停用了但容器里还生效」这种两套事实不会发生 |
+| 真相在库里 | 技能不从磁盘读：`@colony-agents/dsh-market-skill` 运行时向控制面拉，多文件包按 `<name>@<version>-<digest>` 物化并按 digest 判重——所以「门户里停用了但容器里还生效」这种两套事实不会发生 |
 
 安装、启停、卸载都在侧栏「市场」面板里，改完不需要重启容器；
 连接器写配置失败会回滚，团队实例不受影响（[docs/11](docs/11-技能与连接器.md)）。
@@ -237,7 +246,7 @@ flowchart TB
 
 ## 和同类不是一层的东西
 
-| 项目 | 它解决什么 | 和 Colony 的关系 |
+| 项目 | 它解决什么 | 和 Colony Agents 的关系 |
 | --- | --- | --- |
 | [Open WebUI](https://github.com/open-webui/open-webui) / [LibreChat](https://github.com/danny-avila/LibreChat) | 多模型聊天前端 | 它们替代 **UI**；本项目默认用 dsh 自己的 UI，重心在运营层 |
 | [Dify](https://github.com/langgenius/dify) / [n8n](https://github.com/n8n-io/n8n) | 编排工作流、搭 AI 应用 | 它们产出的应用可以被本平台的 Agent 当技能 / MCP 连接器调用 |
@@ -325,15 +334,19 @@ CI 会在每个 PR 上跑全部自测 + 语法检查 + 密钥扫描，见 [.gith
 
 ## 名字
 
-`Colony`：一个巢、一群个体、各司其职。一个公司一个巢，巢里住着一群数字员工——
-网页里能问、群里能 @、能力靠市场装着。
+`Colony Agents`：一个巢（一套部署），一群个体（Agent / 数字员工），各司其职。
+一个公司一个巢，巢里住着网页里的对话、群里的数字员工，能力靠市场装着。
 
-仓库名带复数后缀，是因为 `colony` 这个名字在 GitHub 上有 8,054 个同名仓库，还撞了一家同名的
-区块链公司；`colony-agents` 只有 9 个同名，搜得到、不歧义。所以：
+名字带复数后缀是有依据的：`colony` 在 GitHub 上有 8,054 个同名仓库，还撞了一家同名的区块链公司；
+`colony-agents` 只有 9 个同名，搜得到、不歧义。所以产品、仓库、镜像、包名统一成一套：
 
-- **产品名**：`Colony`（镜像 `colony:`、npm scope `@colony/*`）
-- **平台仓**：`colony-agents`
-- **插件仓**：`colony-dsh-plugins`
+| 用途 | 名称 |
+| --- | --- |
+| 产品 | `Colony Agents` |
+| 平台仓 | `colony-agents` |
+| 插件仓 | `colony-dsh-plugins` |
+| 镜像 | `colony-agents:<version>` |
+| npm scope | `@colony-agents/*` |
 
 ## 许可
 

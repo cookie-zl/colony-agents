@@ -1,6 +1,6 @@
 <div align="center">
 
-# Colony
+# Colony Agents
 
 **Staff your company with digital employees.**
 
@@ -72,7 +72,7 @@ everyone, nobody knows which version is installed, and tokens live in personal c
 | Distribution | Public, team-private, or **point-to-point share** which the receiving team can accept or reject |
 | Credentials | MCP env vars (e.g. `GITHUB_TOKEN`) are entered at install time, stored in the team's own volume, never logged by the control plane |
 | Isolation | One ledger per team; uninstall only affects that team; private packages are invisible to others |
-| Truth in the DB | Skills are not read from disk: `@colony/dsh-market-skill` pulls them from the control plane at runtime and materialises multi-file bundles as `<name>@<version>-<digest>`, deduplicated by digest — so "disabled in the portal but still active in the container" cannot happen |
+| Truth in the DB | Skills are not read from disk: `@colony-agents/dsh-market-skill` pulls them from the control plane at runtime and materialises multi-file bundles as `<name>@<version>-<digest>`, deduplicated by digest — so "disabled in the portal but still active in the container" cannot happen |
 
 Install, toggle and uninstall live in the sidebar marketplace panel; no container restart needed
 ([docs/11](docs/11-技能与连接器.md)).
@@ -204,12 +204,20 @@ Chinese is the primary documentation language; English translations are welcome.
 
 ## Naming
 
-`Colony` — one nest, many individuals, each with a role. One company, one colony; the colony holds a
-team of digital employees.
+`Colony Agents` — one nest (one deployment), many individuals (agents and digital employees), each
+with a role. One company, one colony; the colony holds the conversations in your browser and the
+employees in your group chats, with capabilities installed from the marketplace.
 
-The repo carries a plural suffix because `colony` alone has 8,054 namesakes on GitHub (including a
-company of the same name) while `colony-agents` has 9. The product name stays `Colony`: image
-`colony:`, npm scope `@colony/*`, plugin repo `colony-dsh-plugins`.
+The plural suffix is deliberate: `colony` alone has 8,054 namesakes on GitHub (including a company of
+the same name) while `colony-agents` has 9. Product, repo, image and package names are one set:
+
+| What | Name |
+| --- | --- |
+| Product | `Colony Agents` |
+| Platform repo | `colony-agents` |
+| Plugin repo | `colony-dsh-plugins` |
+| Image | `colony-agents:<version>` |
+| npm scope | `@colony-agents/*` |
 
 ## License
 

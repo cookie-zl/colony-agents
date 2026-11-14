@@ -7,7 +7,7 @@
 ```
 [代码源：这个仓库] → [阶段1 构建：deploy/zadig/build.sh] → [阶段2 部署：Helm Chart]
                               ↓ 产物 image.env
-                      IMAGE=harbor.../dsh/colony:<sha>
+                      IMAGE=harbor.../dsh/colony-agents:<sha>
 ```
 
 只有两个阶段，刻意做薄：构建只做「打镜像并推」，部署只做「helm upgrade」。任何额外的逻辑都会让回滚变难。
@@ -24,7 +24,7 @@ deploy/zadig/build.sh
 
 | 变量 | 必填 | 说明 |
 | --- | --- | --- |
-| `IMAGE_REPOSITORY` | 是 | 如 `harbor.example.com/dsh/colony`，不含 tag |
+| `IMAGE_REPOSITORY` | 是 | 如 `harbor.example.com/dsh/colony-agents`，不含 tag |
 | `IMAGE_TAG` | 否 | 默认取 git 短 sha。**别用 latest**，回滚时你会后悔 |
 | `DSH_VERSION` | 否 | 默认读 `Chart.yaml` 的 `appVersion` |
 | `NPM_REGISTRY` | 否 | 公司有内网 npm 源就换成内网源，比走公网稳 |
@@ -34,9 +34,9 @@ deploy/zadig/build.sh
 脚本产出 `image.env`：
 
 ```
-IMAGE_REPOSITORY=harbor.example.com/dsh/colony
+IMAGE_REPOSITORY=harbor.example.com/dsh/colony-agents
 IMAGE_TAG=a1b2c3d
-IMAGE=harbor.example.com/dsh/colony:a1b2c3d
+IMAGE=harbor.example.com/dsh/colony-agents:a1b2c3d
 DSH_VERSION=0.2.1-rc.5
 ```
 
@@ -74,7 +74,7 @@ Zadig 的「Kubernetes YAML 部署」同样能用：本地渲染一份清单再�
 ```bash
 helm template colony deploy/helm/colony \
   --namespace ai-tools \
-  --set image.repository=harbor.example.com/dsh/colony \
+  --set image.repository=harbor.example.com/dsh/colony-agents \
   --set image.tag=a1b2c3d \
   --set ingress.host=dsh.example.com \
   > deploy/zadig/rendered.yaml

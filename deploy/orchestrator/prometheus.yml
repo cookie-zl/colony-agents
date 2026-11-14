@@ -10,7 +10,7 @@ global:
   evaluation_interval: 30s
 
 scrape_configs:
-  - job_name: Colony
+  - job_name: colony-agents
     metrics_path: /metrics
     static_configs:
       - targets: ['host.docker.internal:9700']

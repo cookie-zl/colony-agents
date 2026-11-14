@@ -2,7 +2,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 DSH_VERSION ?= 0.2.1-rc.5
-IMAGE       ?= colony:$(DSH_VERSION)
+IMAGE       ?= colony-agents:$(DSH_VERSION)
 # 国内构建建议设成 mirrors.aliyun.com；官方源在部分网络下慢到不可用
 APT_MIRROR  ?= mirrors.aliyun.com
 NPM_REGISTRY ?= https://registry.npmmirror.com
@@ -335,7 +335,7 @@ verify-objects: ## 自测对象层：寻址/去重/取回一致 + 上传失败�
 verify-profile: ## 自测「agent 参数跨重启保留 + 会话 cwd 补建」（借用运行镜像里的 yaml）
 	@[ -f .verify-yaml/package.json ] || ( \
 	  mkdir -p .verify-yaml/node_modules && \
-	  docker run --rm --entrypoint sh "colony:$${DSH_VERSION:-0.2.1-rc.5}" \
+	  docker run --rm --entrypoint sh "colony-agents:$${DSH_VERSION:-0.2.1-rc.5}" \
 	    -c 'cd /usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules && tar cf - yaml' \
 	    | tar xf - -C .verify-yaml/node_modules && \
 	  printf '{"name":"verify-yaml"}\n' > .verify-yaml/package.json && \

@@ -27,7 +27,7 @@ ORCH_DIR="$HERE/../orchestrator"
 
 # 与 Makefile 保持一致；只影响「镜像不存在时要不要现场构建」
 DSH_VERSION="${DSH_VERSION:-0.2.1-rc.5}"
-IMAGE="colony:${DSH_VERSION}"
+IMAGE="colony-agents:${DSH_VERSION}"
 
 # 归档用的临时容器：只需要 tar，复用已拉过的镜像，别为了一次打包再拉一个新镜像
 ARCHIVE_IMAGE="${ARCHIVE_IMAGE:-caddy:2-alpine}"

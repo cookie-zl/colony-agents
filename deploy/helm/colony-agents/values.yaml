@@ -8,7 +8,7 @@ nameOverride: ""
 fullnameOverride: ""
 
 image:
-  repository: harbor.example.com/dsh/colony
+  repository: harbor.example.com/dsh/colony-agents
   # 留空则用 Chart.appVersion；Zadig 每次注入 git sha 作为 tag
   tag: ""
   digest: ""

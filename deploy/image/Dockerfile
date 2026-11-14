@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 #
 # colony 运行镜像。构建上下文是**仓库根目录**：
-#   docker build -f deploy/image/Dockerfile -t colony:dev .
+#   docker build -f deploy/image/Dockerfile -t colony-agents:dev .
 #
 # 镜像自包含：不在镜像里构建 dsh 源码，只装 npm 发布版；插件在镜像里打包并装进 profile。
 

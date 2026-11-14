@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "colony.fullname" . }}
+  name: {{ include "colony-agents.fullname" . }}
   labels:
-    {{- include "colony.labels" . | nindent 4 }}
+    {{- include "colony-agents.labels" . | nindent 4 }}
 spec:
   # 只能 1：会话在进程内存 + $DSH_HOME，多副本会各说各话
   replicas: {{ .Values.replicaCount }}
@@ -12,11 +12,11 @@ spec:
     type: Recreate
   selector:
     matchLabels:
-      {{- include "colony.selectorLabels" . | nindent 6 }}
+      {{- include "colony-agents.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "colony.labels" . | nindent 8 }}
+        {{- include "colony-agents.labels" . | nindent 8 }}
     spec:
       # dsh 收到 SIGTERM 会 dispose 整棵 root 再退出，给足时间
       terminationGracePeriodSeconds: 30
@@ -28,7 +28,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: dsh
-          image: {{ include "colony.image" . }}
+          image: {{ include "colony-agents.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
@@ -46,7 +46,7 @@ spec:
             - name: DSH_MARKETPLACE
               value: {{ .Values.dsh.marketplace | quote }}
             - name: DSH_PUBLIC_URL
-              value: {{ include "colony.publicUrl" . | quote }}
+              value: {{ include "colony-agents.publicUrl" . | quote }}
             - name: DSH_TRUSTED_HOST
               value: {{ .Values.dsh.trustedHosts | default .Values.ingress.host | quote }}
             - name: DSH_EXTRA_PATCH
@@ -54,7 +54,7 @@ spec:
             - name: DEEPSEEK_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "colony.secretName" . }}
+                  name: {{ include "colony-agents.secretName" . }}
                   key: DEEPSEEK_API_KEY
                   # 允许先起服务、再补 key（UI 的 Settings 也能填）
                   optional: true
@@ -90,7 +90,7 @@ spec:
         - name: home
           {{- if .Values.persistence.home.enabled }}
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.home.existingClaim | default (printf "%s-home" (include "colony.fullname" .)) }}
+            claimName: {{ .Values.persistence.home.existingClaim | default (printf "%s-home" (include "colony-agents.fullname" .)) }}
           {{- else }}
           # 没有持久卷 = 每次重启丢失会话历史，只适合临时环境
           emptyDir: {}
@@ -98,7 +98,7 @@ spec:
         - name: workspace
           {{- if .Values.persistence.workspace.enabled }}
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.workspace.existingClaim | default (printf "%s-workspace" (include "colony.fullname" .)) }}
+            claimName: {{ .Values.persistence.workspace.existingClaim | default (printf "%s-workspace" (include "colony-agents.fullname" .)) }}
           {{- else }}
           emptyDir: {}
           {{- end }}

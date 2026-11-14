@@ -28,7 +28,7 @@
 # 3) 手工插入一个行，指向镜像里已安装的包
 # - insert:
 #     - id: hello-dsh
-#       name: '@colony/dsh-hello'
+#       name: '@colony-agents/dsh-hello'
 #       config:
 #         greeting: '你好'
 

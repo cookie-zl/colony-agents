@@ -16,7 +16,7 @@
 replicaCount: 1
 
 image:
-  repository: harbor.example.com/dsh/colony
+  repository: harbor.example.com/dsh/colony-agents
   tag: ""
   pullPolicy: IfNotPresent
 

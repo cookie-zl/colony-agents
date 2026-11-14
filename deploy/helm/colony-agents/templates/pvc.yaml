@@ -2,9 +2,9 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "colony.fullname" . }}-home
+  name: {{ include "colony-agents.fullname" . }}-home
   labels:
-    {{- include "colony.labels" . | nindent 4 }}
+    {{- include "colony-agents.labels" . | nindent 4 }}
   {{- if .Values.persistence.home.keepOnUninstall }}
   annotations:
     # 卸载 release 时保留：这里有会话历史、凭据，以及运行时装过的插件
@@ -25,9 +25,9 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ include "colony.fullname" . }}-workspace
+  name: {{ include "colony-agents.fullname" . }}-workspace
   labels:
-    {{- include "colony.labels" . | nindent 4 }}
+    {{- include "colony-agents.labels" . | nindent 4 }}
   {{- if .Values.persistence.workspace.keepOnUninstall }}
   annotations:
     # agent 实际改的代码在这里，卸载别删

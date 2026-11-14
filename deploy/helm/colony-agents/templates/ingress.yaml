@@ -2,9 +2,9 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "colony.fullname" . }}
+  name: {{ include "colony-agents.fullname" . }}
   labels:
-    {{- include "colony.labels" . | nindent 4 }}
+    {{- include "colony-agents.labels" . | nindent 4 }}
   annotations:
     {{- /* 反代必须原样透传 Host，否则 dsh 的浏览器信任护栏会让所有 /api 返回 403 */}}
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
@@ -41,7 +41,7 @@ spec:
   tls:
     - hosts:
         - {{ .Values.ingress.host | quote }}
-      secretName: {{ .Values.ingress.tls.secretName | default (printf "%s-tls" (include "colony.fullname" .)) }}
+      secretName: {{ .Values.ingress.tls.secretName | default (printf "%s-tls" (include "colony-agents.fullname" .)) }}
   {{- end }}
   rules:
     - host: {{ .Values.ingress.host | quote }}
@@ -51,7 +51,7 @@ spec:
             pathType: {{ .Values.ingress.pathType }}
             backend:
               service:
-                name: {{ include "colony.fullname" . }}
+                name: {{ include "colony-agents.fullname" . }}
                 port:
                   name: http
 {{- end }}
