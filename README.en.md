@@ -9,6 +9,7 @@ tenant; skills and MCP connectors distributed through a marketplace with version
 the browser or `@` it in DingTalk / Feishu, each employee with its own role and persona.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/cookie-zl/colony-agents?color=blue)](https://github.com/cookie-zl/colony-agents/releases)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-3c873a.svg)](https://nodejs.org)
 [![Self-hosted](https://img.shields.io/badge/self--hosted-yes-111.svg)](#quickstart)
 

@@ -9,6 +9,7 @@
 网页里能对话，钉钉 / 飞书群里能 `@`，还能按岗位配成数字员工。
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/cookie-zl/colony-agents?color=blue)](https://github.com/cookie-zl/colony-agents/releases)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-3c873a.svg)](https://nodejs.org)
 [![Docker](https://img.shields.io/badge/docker-compose%20%7C%20helm-2496ed.svg)](deploy/)
 [![Self-hosted](https://img.shields.io/badge/self--hosted-yes-111.svg)](#快速开始)
