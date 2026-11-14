@@ -45,6 +45,26 @@ jobs:
       - name: make verify-all
         run: make verify-all
 
+  helm:
+    name: Helm chart
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Makefile 里的 chart 路径必须存在
+        run: |
+          set -e
+          chart=$(sed -n 's/^HELM_CHART[[:space:]]*:=[[:space:]]*//p' Makefile)
+          test -f "$chart/Chart.yaml" || { echo "HELM_CHART=$chart 下没有 Chart.yaml"; exit 1; }
+          echo "HELM_CHART=$chart"
+      - name: lint + template
+        run: |
+          set -e
+          # 与 Makefile 用同一个镜像，避免 CI 与本地判据不一致
+          docker run --rm -v "$PWD/deploy/helm/colony-agents:/apps" alpine/helm:3.16.3 lint /apps
+          docker run --rm -v "$PWD/deploy/helm/colony-agents:/apps" alpine/helm:3.16.3 \
+            template colony-agents /apps --namespace ai-tools > /dev/null
+          echo "chart 能 lint 且能渲染"
+
   secrets:
     name: 密钥扫描
     runs-on: ubuntu-latest
