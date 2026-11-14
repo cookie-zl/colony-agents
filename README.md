@@ -2,11 +2,11 @@
 
 # Colony
 
-**把 AI Agent 变成团队基础设施**
+**给公司配一支数字员工队伍**
 
-云上部署一套 dsh，全团队共用；一个团队一个隔离实例，
-技能与 MCP 走市场、带版本、能按团队分发；
-钉钉 / 飞书群里 `@` 一下，数字员工就开工。
+云上部署一套 dsh，全团队共用——一个团队一个隔离实例；
+技能与 MCP 走市场、带版本、按团队分发；
+网页里能对话，群里能 `@`，每个数字员工有自己的岗位与人设。
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-3c873a.svg)](https://nodejs.org)
@@ -22,7 +22,7 @@
 
 ## 这是什么
 
-一句话：**把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（下称 dsh）部署成一台团队共用的 Agent 主机——多租户隔离、能力可分发、能进群干活。**
+一句话：**把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（下称 dsh）部署成一台团队共用的 Agent 主机，再按岗位配成一支数字员工队伍。**
 
 dsh 本身是单人视角的：一个进程、一份会话、一个 `$DSH_HOME`。一个人用很顺手，
 交给一个团队就会撞墙——谁都能进、会话互相污染、能力散落在各自机器上、机器不敢重启。
@@ -108,6 +108,18 @@ dsh 本身是单人视角的：一个进程、一份会话、一个 `$DSH_HOME`�
   → OpenAPI 主动发送回原群（不依赖 1.5 小时就过期的 sessionWebhook）
 ```
 
+### 合起来看：数字员工的日常
+
+| 日常问题 | 谁在问 | 靠什么 |
+| --- | --- | --- |
+| 群里问「上周留存多少」「这个口径对吗」 | 运营 / 产品 | 技能（口径与 SQL 规范）+ MCP（数据库 / BI） |
+| 让它翻仓库、读 issue、提 PR | 研发 | MCP（GitHub）+ 工作区里的代码 |
+| 按既有流程改配置、跑脚本、看日志 | 运维 | Agent 自带的文件与命令能力，权限边界在卷与准入层 |
+| 按模板整理成文、核对数据 | 全员 | 技能（模板与检查项） |
+
+这些能力都不是内置写死的：**装了什么技能与 MCP，数字员工就会什么**——所以第二节的市场不是附加功能，
+而是决定它能干什么的那一层。网页和群里是同一个会话，问过一次的事换个入口不用重讲。
+
 ### 三条横切的能力
 
 上面三件事都建立在同一套底座上，它们不是「顺便做的」：
@@ -153,7 +165,7 @@ dsh 本身是单人视角的：一个进程、一份会话、一个 `$DSH_HOME`�
 需要 Docker（macOS / Linux 都行），以及 `make`。
 
 ```bash
-git clone https://github.com/cookie-zl/colony.git && cd colony
+git clone https://github.com/cookie-zl/colony-agents.git && cd colony-agents
 
 make seed      # 生成 accounts.json / nodes.json / .env（演示账号 admin / demo1234）
 make up        # 构建镜像并起 team-a → http://team-a.localhost:8080/
@@ -313,9 +325,15 @@ CI 会在每个 PR 上跑全部自测 + 语法检查 + 密钥扫描，见 [.gith
 
 ## 名字
 
-`Colony`：一个巢、一群个体、各司其职。团队共用一个 Agent，插件是分工——不是每个人各养一个。
+`Colony`：一个巢、一群个体、各司其职。一个公司一个巢，巢里住着一群数字员工——
+网页里能问、群里能 @、能力靠市场装着。
 
-名字同时挂在两个仓和一个 npm scope 上：`colony` / `colony-dsh-plugins` / `@colony/*`。
+仓库名带复数后缀，是因为 `colony` 这个名字在 GitHub 上有 8,054 个同名仓库，还撞了一家同名的
+区块链公司；`colony-agents` 只有 9 个同名，搜得到、不歧义。所以：
+
+- **产品名**：`Colony`（镜像 `colony:`、npm scope `@colony/*`）
+- **平台仓**：`colony-agents`
+- **插件仓**：`colony-dsh-plugins`
 
 ## 许可
 

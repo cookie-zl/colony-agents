@@ -2,11 +2,11 @@
 
 # Colony
 
-**Turn an AI agent into team infrastructure.**
+**Staff your company with digital employees.**
 
-Deploy one dsh on your own machines and share it with the whole team — one isolated
-instance per tenant; skills and MCP connectors distributed through a marketplace with
-versions; `@` the bot in DingTalk / Feishu and a digital employee picks it up.
+Deploy one dsh on your own machines and share it with the whole team — one isolated instance per
+tenant; skills and MCP connectors distributed through a marketplace with versions; chat with it in
+the browser or `@` it in DingTalk / Feishu, each employee with its own role and persona.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-3c873a.svg)](https://nodejs.org)
@@ -21,8 +21,7 @@ versions; `@` the bot in DingTalk / Feishu and a digital employee picks it up.
 ## What it is
 
 In one sentence: **turn [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh)
-into an agent host a team can share — tenant-isolated, with distributable capabilities, reachable
-from your chat.**
+into an agent host a team can share, then staff it as a team of digital employees.**
 
 dsh is built for one person: one process, one session, one `$DSH_HOME`. That is great solo and
 breaks down for a team — anyone can walk in, sessions bleed into each other, capabilities scatter
@@ -107,6 +106,19 @@ A real path, verified end to end:
   → reply sent back via OpenAPI (not the 1.5h sessionWebhook)
 ```
 
+### What they do all day
+
+| Everyday question | Asked by | Powered by |
+| --- | --- | --- |
+| "What was last week's retention?" / "Is this metric defined right?" | ops, PM | skills (definitions, SQL rules) + MCP (database / BI) |
+| "Dig through the repo, read the issue, open a PR" | engineers | MCP (GitHub) + the code in its workspace |
+| "Apply this config change, run the script, tail the logs" | ops | the agent's own file and shell tools, bounded by volumes and access control |
+| "Turn this into the usual doc, check the numbers" | everyone | skills (templates and checklists) |
+
+None of this is hard-coded: **whatever skills and MCP connectors are installed is what the employee can do**,
+which makes the marketplace in section 2 the layer that decides capability rather than an add-on. The browser
+and the group chat share one session, so a question asked once does not need repeating.
+
 ### Three cross-cutting guarantees
 
 All three sit on the same substrate, and none of them is an afterthought:
@@ -138,7 +150,7 @@ No git submodules on purpose: private submodules need extra credentials, and a `
 Requires Docker and `make`.
 
 ```bash
-git clone https://github.com/cookie-zl/colony.git && cd colony
+git clone https://github.com/cookie-zl/colony-agents.git && cd colony-agents
 make seed      # generate accounts.json / nodes.json / .env (demo login admin / demo1234)
 make up        # build image, start team-a → http://team-a.localhost:8080/
 ```
@@ -189,6 +201,15 @@ flowchart TB
 - Roadmap, known gaps and things we deliberately did **not** build: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 Chinese is the primary documentation language; English translations are welcome.
+
+## Naming
+
+`Colony` — one nest, many individuals, each with a role. One company, one colony; the colony holds a
+team of digital employees.
+
+The repo carries a plural suffix because `colony` alone has 8,054 namesakes on GitHub (including a
+company of the same name) while `colony-agents` has 9. The product name stays `Colony`: image
+`colony:`, npm scope `@colony/*`, plugin repo `colony-dsh-plugins`.
 
 ## License
 
