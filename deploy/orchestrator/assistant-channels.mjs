@@ -82,6 +82,8 @@ export function normalizeDingTalkEvent(payload) {
 		msgId: payload.msgId ?? '',
 		robotKey: payload.robotCode ?? payload.chatbotCorpId ?? '',
 		conversationId: payload.conversationId ?? undefined,
+		// 群名：有就用它给线程当标题，没有（部分回调不带）就退化成会话 id 尾部
+		conversationTitle: payload.conversationTitle ?? undefined,
 		// 1=单聊 / 2=群聊：排查「回复到底回哪儿了」时，光有 cid 看不出会话类型
 		conversationType: Number(payload.conversationType) || undefined,
 		senderId: payload.senderStaffId ?? payload.senderId ?? undefined,

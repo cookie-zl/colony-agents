@@ -312,10 +312,8 @@ CREATE TABLE IF NOT EXISTS team_llm_tokens (
   revoked_at TEXT
 );
 
--- assistants · 助理：一行 = 一个 IM 机器人 + 一个 dsh 会话。
--- 一个机器人只能绑一个助理（UNIQUE platform+robot_key），一个会话只属一个助理（UNIQUE session_id）——
--- 这两条唯一约束就是「多助理互不冲突」的落点：不同助理的 session_id 必然不同，
--- headless 各自写各自的会话目录，天然隔离；同一助理的消息由队列串行，不会两个进程抢 session.lock。
+-- assistants · 一个 IM 机器人的**配置**。对话不在这里：一个群一条线程，见 assistant_threads。
+-- 一个机器人只能有一份配置（UNIQUE platform+robot_key）——否则同一机器人的消息会被两份配置抢。
 -- 凭据不进这张表：出站 webhook / 应用密钥走 team_secrets，scope = 'assistant:<id>'。
 CREATE TABLE IF NOT EXISTS assistants (
   id              TEXT PRIMARY KEY,
@@ -323,18 +321,49 @@ CREATE TABLE IF NOT EXISTS assistants (
   name            TEXT NOT NULL,
   platform        TEXT NOT NULL CHECK (platform IN ('dingtalk','feishu')),
   robot_key       TEXT NOT NULL,                -- 钉钉 robotCode / 飞书 app_id
-  conversation_id TEXT,                        -- 绑定群；NULL = 不限群
-  session_id      TEXT,                        -- 首条消息由 headless 建会话后回写，之后一直续聊
   system_prompt   TEXT,                        -- 附在用户消息前的助理人设/约束
   enabled         INTEGER NOT NULL DEFAULT 1,
   created_by      TEXT NOT NULL,
   created_at      TEXT NOT NULL,
   updated_at      TEXT NOT NULL,
-  UNIQUE (platform, robot_key),
-  UNIQUE (session_id)
+  UNIQUE (platform, robot_key)
 );
 
 CREATE INDEX IF NOT EXISTS idx_assistants_team ON assistants (team_id);
+
+-- assistant_threads · 一个群一条对话 = 一条 dsh 会话。
+-- 对话的唯一键是「机器人 + 群」：`(assistant_id, conversation_id)`。
+-- 为什么 conversation_id 用空串而不是 NULL：SQLite 的 UNIQUE 不约束 NULL，
+-- 用 NULL 会让同一个群在并发里插出两条线程。空串表示「拿不到群 id 的兜底线程」（模拟消息/测试）。
+-- 之所以不直接拼 (platform, robot_key, conversation_id)：robot_key 已经由 assistant_id 唯一确定。
+CREATE TABLE IF NOT EXISTS assistant_threads (
+  id              TEXT PRIMARY KEY,
+  assistant_id    TEXT NOT NULL REFERENCES assistants (id),
+  team_id         TEXT NOT NULL,                -- 冗余一份，按团队查线程不用回 join
+  platform        TEXT NOT NULL,
+  conversation_id TEXT NOT NULL DEFAULT '',     -- 钉钉 conversationId / 飞书 chat_id
+  title           TEXT,                         -- 群名（平台给了才有），展示用
+  session_id      TEXT,                         -- 首轮 headless 建好后回写，之后一直续聊
+  created_at      TEXT NOT NULL,
+  last_active_at  TEXT NOT NULL,
+  UNIQUE (assistant_id, conversation_id),
+  UNIQUE (session_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_assistant_threads_assistant ON assistant_threads (assistant_id, last_active_at DESC);
+
+-- assistant_channels · 「只服务这几个群」的白名单。
+-- 空表 = 不限群（机器人被拉进哪个群都处理）。有行时，只有列进来的群能触发。
+-- 这是**准入**，和 assistant_threads 的**分对话**是两件事，不要合并：
+-- 前者决定「这个群能不能用」，后者决定「这个群用哪条会话」。
+CREATE TABLE IF NOT EXISTS assistant_channels (
+  assistant_id    TEXT NOT NULL REFERENCES assistants (id),
+  conversation_id TEXT NOT NULL,
+  title           TEXT,
+  added_by        TEXT,
+  added_at        TEXT NOT NULL,
+  PRIMARY KEY (assistant_id, conversation_id)
+);
 
 -- assistant_messages · 消息流水：一行 = 一条入站消息及其处理结果。
 -- UNIQUE(assistant_id, platform, msg_id) 同时承担幂等：钉钉/飞书都可能重推同一条消息，
@@ -342,6 +371,7 @@ CREATE INDEX IF NOT EXISTS idx_assistants_team ON assistants (team_id);
 CREATE TABLE IF NOT EXISTS assistant_messages (
   id              TEXT PRIMARY KEY,
   assistant_id    TEXT NOT NULL REFERENCES assistants (id),
+  thread_id       TEXT,                        -- 归属的群线程；老库由 ensureColumns 补
   platform        TEXT NOT NULL,
   msg_id          TEXT NOT NULL,
   conversation_id TEXT,
@@ -361,3 +391,5 @@ CREATE TABLE IF NOT EXISTS assistant_messages (
 );
 
 CREATE INDEX IF NOT EXISTS idx_assistant_messages_assistant ON assistant_messages (assistant_id, created_at DESC);
+-- thread_id 的索引不在这里建：老库还没有这一列，schema 先于补列执行会直接报错。
+-- 统一由 db.mjs 的 ensureColumns 在补完列之后建。

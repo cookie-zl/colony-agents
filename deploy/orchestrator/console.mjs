@@ -53,14 +53,16 @@
  *     GET  /market/skills/:name/:version       → text/plain 技能正文
  *     GET  /market/skills/:name/:version/bundle → application/gzip 整包（多文件技能物化用）
  *
- *   助理（一个机器人 ↔ 一个 dsh 会话；@ 才处理）
+ *   助理（一个机器人 + 每群一条 dsh 会话；@ 才处理）
  *     POST /assistants/inbound/dingtalk        → 钉钉回调，**不走 console-token**，验加签
  *     POST /assistants/inbound/feishu          → 飞书回调，**不走 console-token**，验 token（含 challenge）
  *     GET  /assistants?team=                    → 助理列表（不回凭据）
  *     POST /assistants                         → 新建并写凭据（team_secrets 加密）
- *     POST /assistants/:id                     → 改名 / 人设 / 绑定群 / 启停 / 换凭据
- *     DELETE /assistants/:id                   → 删除（连流水与凭据一起清）
- *     GET  /assistants/:id/messages            → 消息流水（幂等键、状态、耗时）
+ *     POST /assistants/:id                     → 改名 / 人设 / 群白名单 / 启停 / 换凭据
+ *     DELETE /assistants/:id                   → 删除（连线程、流水与凭据一起清）
+ *     GET  /assistants/:id/threads             → 群线程列表（一个群一条对话）
+ *     POST /assistants/:id/threads/:tid/reset  → 让某个群重新开始对话（只断会话，不删历史）
+ *     GET  /assistants/:id/messages?threadId=  → 消息流水（幂等键、状态、耗时，可按群过滤）
  *     POST /assistants/:id/test                → 模拟一条 @ 消息，跑完整链路（联调用）
  *
  * 鉴权：请求头 X-Console-Token 必须等于本目录的 console-token 文件

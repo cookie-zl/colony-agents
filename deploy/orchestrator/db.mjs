@@ -49,6 +49,111 @@ export function itemId(kind, name, version) {
 }
 
 /**
+ * 把「一机器人一对话」的老结构迁到「一群一对话」。
+ *
+ * 老 `assistants` 把 session_id 挂在机器人上，并带 `UNIQUE(session_id)`；新结构把会话挪到
+ * `assistant_threads`，`assistants` 只留配置。SQLite 不能 DROP CONSTRAINT，只能重建表，
+ * 所以这段必须幂等：只有检测到 legacy 列才动手，搬完列就没了，下次进来直接返回。
+ *
+ * 迁移规则（老数据无法知道「这条共用会话属于哪个群」，只能按最接近的语义落）：
+ *   - `conversation_id` 有值（老语义是「只服务这个群」）→ 进 assistant_channels 白名单，
+ *     并且那条老会话成为**这个群**的线程，上下文续得上；
+ *   - `conversation_id` 为空（不限群、所有群共用一条会话）→ 老会话落到「兜底线程」，
+ *     可查不可续：升级后每个群的第一条消息都会新建自己的会话，避免两个群抢同一条。
+ *
+ * @param {import('node:sqlite').DatabaseSync} db
+ * @returns {number} 迁移的线程数（0 表示已经迁过）
+ */
+function migrateAssistantsToThreads(db) {
+	const cols = db.prepare("SELECT name FROM pragma_table_info('assistants')").all().map((c) => c.name)
+	if (!cols.includes('session_id') && !cols.includes('conversation_id')) return 0
+
+	const rows = db.prepare('SELECT * FROM assistants').all()
+	const at = nowIso()
+	const insertThread = db.prepare(
+		`INSERT OR IGNORE INTO assistant_threads
+		   (id, assistant_id, team_id, platform, conversation_id, title, session_id, created_at, last_active_at)
+		 VALUES (?,?,?,?,?,?,?,?,?)`,
+	)
+	const insertChannel = db.prepare(
+		`INSERT OR IGNORE INTO assistant_channels (assistant_id, conversation_id, title, added_by, added_at)
+		 VALUES (?,?,?,?,?)`,
+	)
+	let threads = 0
+	for (const row of rows) {
+		const cid = row.conversation_id ? String(row.conversation_id) : ''
+		if (cid) insertChannel.run(row.id, cid, null, 'migrate', at)
+		if (!row.session_id) continue
+		insertThread.run(
+			`at-${createHash('sha256').update(`${row.id}:${cid}`).digest('hex').slice(0, 12)}`,
+			row.id,
+			row.team_id,
+			row.platform,
+			cid,
+			null,
+			row.session_id,
+			at,
+			at,
+		)
+		threads += 1
+	}
+
+	// 重建表：列定义必须与 init-db.sql 的 assistants 保持一致，改一边时记得同步。
+	db.exec('PRAGMA foreign_keys = OFF')
+	db.exec('BEGIN')
+	try {
+		db.exec(`CREATE TABLE assistants_migrating (
+			  id              TEXT PRIMARY KEY,
+			  team_id         TEXT NOT NULL,
+			  name            TEXT NOT NULL,
+			  platform        TEXT NOT NULL CHECK (platform IN ('dingtalk','feishu')),
+			  robot_key       TEXT NOT NULL,
+			  system_prompt   TEXT,
+			  enabled         INTEGER NOT NULL DEFAULT 1,
+			  created_by      TEXT NOT NULL,
+			  created_at      TEXT NOT NULL,
+			  updated_at      TEXT NOT NULL,
+			  UNIQUE (platform, robot_key)
+			)`)
+		db.exec(`INSERT INTO assistants_migrating
+			   (id, team_id, name, platform, robot_key, system_prompt, enabled, created_by, created_at, updated_at)
+			 SELECT id, team_id, name, platform, robot_key, system_prompt, enabled, created_by, created_at, updated_at
+			   FROM assistants`)
+		db.exec('DROP TABLE assistants')
+		db.exec('ALTER TABLE assistants_migrating RENAME TO assistants')
+		db.exec('CREATE INDEX IF NOT EXISTS idx_assistants_team ON assistants (team_id)')
+		db.exec('COMMIT')
+	} catch (error) {
+		db.exec('ROLLBACK')
+		throw error
+	} finally {
+		// 无论成败都要恢复：忘了这一步，后续所有写入都不再校验外键
+		db.exec('PRAGMA foreign_keys = ON')
+	}
+	console.log(`db: 助理结构升级完成（迁移 ${threads} 条会话到「一群一对话」，共 ${rows.length} 份机器人配置）`)
+	return threads
+}
+
+/**
+ * 给老流水补线程归属。
+ *
+ * 只在「这个机器人恰好只有一条线程」时回填：多条线程的老流水无法判断属于哪个群，
+ * 猜一个比留空更糟——查历史时会把 A 群的问题算到 B 群头上。
+ *
+ * @param {import('node:sqlite').DatabaseSync} db
+ */
+function backfillMessageThreads(db) {
+	const singles = db
+		.prepare('SELECT assistant_id, MIN(id) AS thread_id FROM assistant_threads GROUP BY assistant_id HAVING COUNT(*) = 1')
+		.all()
+	if (!singles.length) return
+	const update = db.prepare('UPDATE assistant_messages SET thread_id = ? WHERE assistant_id = ? AND thread_id IS NULL')
+	let rows = 0
+	for (const row of singles) rows += Number(update.run(row.thread_id, row.assistant_id).changes)
+	if (rows) console.log(`db: 回填 ${rows} 条老流水到对应群线程`)
+}
+
+/**
  * 给已经存在的老库补列。`CREATE TABLE IF NOT EXISTS` 不会改已建好的表，
  * 所以新增列必须在这里显式 ALTER——这是最小可用的迁移机制，正式的编号迁移见 docs/12 第 10 节。
  *
@@ -59,6 +164,7 @@ function ensureColumns(db) {
 	const add = (table, column, ddl) => {
 		if (!cols(table).includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`)
 	}
+	migrateAssistantsToThreads(db)
 	add('ops', 'from_team', 'from_team TEXT')
 	add('ops', 'to_team', 'to_team TEXT')
 	// 分享原先只记 kind/name/version，靠三元组反查包——那是按名称关联。
@@ -85,6 +191,10 @@ function ensureColumns(db) {
 	// 老库并行补列，新库由 init-db.sql 建好，两边结构保持一致。
 	add('assistant_messages', 'thinking', 'thinking TEXT')
 	add('assistant_messages', 'usage', 'usage TEXT')
+	// 消息归属到具体群线程：一个机器人在多个群里各聊各的，流水也要能按群分开查。
+	add('assistant_messages', 'thread_id', 'thread_id TEXT')
+	db.exec('CREATE INDEX IF NOT EXISTS idx_assistant_messages_thread ON assistant_messages (thread_id, created_at DESC)')
+	backfillMessageThreads(db)
 	add('market_item_files', 'storage', "storage TEXT NOT NULL DEFAULT 'db'")
 	add('market_item_files', 'object_key', 'object_key TEXT')
 	migrateItemContent(db, cols)

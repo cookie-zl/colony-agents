@@ -24,7 +24,11 @@ import {
 	deleteAssistant,
 	getAssistant,
 	listAssistants,
+	listChannels,
 	listMessages,
+	listThreads,
+	resetThread,
+	setChannels,
 	updateAssistant,
 } from './assistants.mjs'
 import {
@@ -109,7 +113,8 @@ function robotKeyOf(platform, payload) {
  * @returns {{handleInbound:Function,handleAdmin:Function,dispatcher:object}} 运行时
  */
 export function createAssistantRuntime({ db, json, readJson, overrides = {} }) {
-	const secret = (team, scope, key) => getSecret(db, { team, scope, key })
+	// overrides.secret 只给自测用：默认读库里的加密凭据，测试不建 KEK 也能跑完整链路
+	const secret = overrides.secret ?? ((team, scope, key) => getSecret(db, { team, scope, key }))
 	/** 统一返回：写完响应并告诉调用方「这条路由已处理」。 */
 	const reply = (res, status, body) => { json(res, status, body); return true }
 
@@ -224,29 +229,51 @@ export function createAssistantRuntime({ db, json, readJson, overrides = {} }) {
 					name: String(body.name || '新助理'),
 					platform: body.platform,
 					robotKey: String(body.robotKey || ''),
-					conversationId: body.conversationId ?? null,
+					conversationId: body.conversationId || null,
 					systemPrompt: body.systemPrompt ?? null,
 					by: String(body.by || 'console'),
 				})
+				// channels 是「多群白名单」，conversationId 只是它的单值简写；两个都传时以数组为准
+				if (Array.isArray(body.channels)) setChannels(db, id, body.channels, String(body.by || 'console'))
 				saveCredentials(getAssistant(db, id), body.credentials)
 				changed()
 				return reply(res, 201, { assistant: getAssistant(db, id) })
 			}
 		}
 
-		const match = pathname.match(/^\/assistants\/([^/]+)(?:\/(messages|test))?$/)
-		if (!match) return false
-		const [, id, action] = match
-		const assistant = getAssistant(db, id)
-		if (!assistant) return reply(res, 404, { error: 'not found' })
-
-		if (action === 'messages' && req.method === 'GET') {
-			return reply(res, 200, { messages: listMessages(db, id) })
+		const resetMatch = pathname.match(/^\/assistants\/([^/]+)\/threads\/([^/]+)\/reset$/)
+		if (resetMatch && req.method === 'POST') {
+			const [, id, threadId] = resetMatch
+			if (!getAssistant(db, id)) return reply(res, 404, { error: 'not found' })
+			const ok = resetThread(db, threadId)
+			return reply(res, ok ? 200 : 404, ok ? { reset: true, threadId } : { error: 'thread not found' })
 		}
-		if (action === 'test' && req.method === 'POST') {
+
+		const threadsMatch = pathname.match(/^\/assistants\/([^/]+)\/threads$/)
+		if (threadsMatch && req.method === 'GET') {
+			const [, id] = threadsMatch
+			if (!getAssistant(db, id)) return reply(res, 404, { error: 'not found' })
+			return reply(res, 200, { threads: listThreads(db, id) })
+		}
+
+		const messagesMatch = pathname.match(/^\/assistants\/([^/]+)\/messages$/)
+		if (messagesMatch && req.method === 'GET') {
+			const [, id] = messagesMatch
+			return reply(res, 200, {
+				messages: listMessages(db, id, 50, url.searchParams.get('threadId') || null),
+			})
+		}
+
+		const testMatch = pathname.match(/^\/assistants\/([^/]+)\/test$/)
+		if (testMatch && req.method === 'POST') {
+			const [, id] = testMatch
+			const assistant = getAssistant(db, id)
+			if (!assistant) return reply(res, 404, { error: 'not found' })
 			const body = await readJson(req)
-			// 带 conversationId 就真的发到那个群（走 OpenAPI），不带就只跑 dsh、把结果留在流水里
-			const conversationId = String(body.conversationId || '').trim() || assistant.conversation_id || undefined
+			// 带 conversationId 就真的发到那个群（走 OpenAPI），不带就只跑 dsh、把结果留在流水里。
+			// 测试消息也会落到那个群的线程上——否则「测试」和「群里真问」会聊成两条会话。
+			const conversationId =
+				String(body.conversationId || '').trim() || listChannels(db, id)[0]?.conversation_id || undefined
 			const event = {
 				platform: assistant.platform,
 				robotKey: assistant.robot_key,
@@ -259,17 +286,23 @@ export function createAssistantRuntime({ db, json, readJson, overrides = {} }) {
 				replyUrl: undefined,
 			}
 			const result = await dispatcher.handle(event)
-			reply(res, 200, { result, message: listMessages(db, id)[0] })
+			reply(res, 200, { result, message: listMessages(db, id, 1)[0] })
 			return true
 		}
-		if (!action && req.method === 'POST') {
+
+		const baseMatch = pathname.match(/^\/assistants\/([^/]+)$/)
+		if (!baseMatch) return false
+		const id = baseMatch[1]
+		const assistant = getAssistant(db, id)
+		if (!assistant) return reply(res, 404, { error: 'not found' })
+		if (req.method === 'POST') {
 			const body = await readJson(req)
 			const updated = updateAssistant(db, id, body)
 			saveCredentials(updated, body.credentials)
 			changed()
 			return reply(res, 200, { assistant: updated })
 		}
-		if (!action && req.method === 'DELETE') {
+		if (req.method === 'DELETE') {
 			const scope = assistantSecretScope(id)
 			for (const key of Object.values(SECRET_KEYS)) {
 				deleteSecret(db, { team: assistant.team_id, scope, key })

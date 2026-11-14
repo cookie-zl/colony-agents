@@ -19,13 +19,20 @@ import {
 	createSemaphore,
 	deleteAssistant,
 	findAssistantForEvent,
+	findThread,
 	getAssistant,
 	headlessCommand,
 	listAssistants,
+	listChannels,
 	listMessages,
+	listThreads,
 	parseHeadlessOutput,
+	resetThread,
+	resolveThread,
+	setChannels,
 	shortError,
 	splitText,
+	threadLabel,
 	updateAssistant,
 } from './assistants.mjs'
 import {
@@ -35,6 +42,7 @@ import {
 	verifyInbound,
 	verifyDingTalkSign,
 } from './assistant-channels.mjs'
+import { createAssistantRuntime } from './assistant-http.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const db = new DatabaseSync(':memory:')
@@ -142,17 +150,26 @@ console.log('\n== 4. 助理实体与唯一约束 ==')
 const a1 = createAssistant(db, { team: 'team-a', name: '日报助理', platform: 'dingtalk', robotKey: 'ding-robot-a', by: 'tester' })
 const a2 = createAssistant(db, { team: 'team-a', name: '翻译助理', platform: 'feishu', robotKey: 'cli_feishu_a', by: 'tester' })
 check('两个助理建成了', Boolean(getAssistant(db, a1)) && Boolean(getAssistant(db, a2)))
-check('初建时会话尚未创建', getAssistant(db, a1).session_id === null)
+check('初建时还没有任何群线程', listThreads(db, a1).length === 0)
 check('列表不回显出站凭据，只回 hasOutbound', listAssistants(db, 'team-a')[0].hasOutbound === false)
+check('列表带回线程数与白名单', listAssistants(db, 'team-a')[0].threads === 0 && Array.isArray(listAssistants(db, 'team-a')[0].channels))
 throws('同一个机器人不能绑第二个助理', () => createAssistant(db, { team: 'team-a', name: '冒名', platform: 'dingtalk', robotKey: 'ding-robot-a', by: 'tester' }))
 throws('非法平台被拒绝', () => createAssistant(db, { team: 'team-a', name: 'x', platform: 'slack', robotKey: 'x', by: 'tester' }))
 updateAssistant(db, a1, { name: '日报助理 v2', enabled: false })
 check('改名与停用生效', getAssistant(db, a1).name === '日报助理 v2' && getAssistant(db, a1).enabled === 0)
 updateAssistant(db, a1, { enabled: true })
 check('按 robotKey 找不到停用助理，启用后能找到', findAssistantForEvent(db, { platform: 'dingtalk', robotKey: 'ding-robot-a' })?.id === a1)
-db.prepare('UPDATE assistants SET session_id = ? WHERE id = ?').run('session-shared', a1)
-throws('同一会话不能属于两个助理', () => db.prepare('UPDATE assistants SET session_id = ? WHERE id = ?').run('session-shared', a2))
-db.prepare('UPDATE assistants SET session_id = NULL WHERE id = ?').run(a1)
+{
+	// 一条 dsh 会话只能挂在一个群上：两条线程共用一个 session 会让两个群互相污染
+	const tA = resolveThread(db, getAssistant(db, a1), 'cid-shared')
+	const tB = resolveThread(db, getAssistant(db, a2), 'oc-shared')
+	db.prepare('UPDATE assistant_threads SET session_id = ? WHERE id = ?').run('session-shared', tA.id)
+	throws('同一个会话不能属于两个群线程', () => db.prepare('UPDATE assistant_threads SET session_id = ? WHERE id = ?').run('session-shared', tB.id))
+	db.prepare('UPDATE assistant_threads SET session_id = NULL WHERE id = ?').run(tA.id)
+	db.prepare('DELETE FROM assistant_threads WHERE id IN (?,?)').run(tA.id, tB.id)
+}
+check('线程键是「助理 + 群」，同群重复解析只得到一行', resolveThread(db, getAssistant(db, a1), 'cid-dup').id === resolveThread(db, getAssistant(db, a1), 'cid-dup').id)
+db.prepare('DELETE FROM assistant_threads').run()
 
 console.log('\n== 5. 调度器：串行 / 幂等 / 首建会话 / 非 @ 不进 dsh ==')
 const execLog = []
@@ -183,11 +200,13 @@ const dispatcher = createAssistantDispatcher({
 const ev1 = { ...dt, msgId: 'm-1' }
 const r1 = await dispatcher.handle(ev1)
 check('@ 消息处理完成', r1.status === 'done', JSON.stringify(r1))
-check('首条消息自动建会话并回写', Boolean(getAssistant(db, a1).session_id))
+check('首条消息自动建会话并回写到该群线程', Boolean(findThread(db, a1, 'cid-1')?.session_id))
 check('首条消息没有带 --session-id', !execLog[0].includes('--session-id'))
 const ev2 = { ...dt, msgId: 'm-2', text: '第二条' }
 const r2 = await dispatcher.handle(ev2)
 check('第二条消息带 --session-id 续聊', r2.status === 'done' && execLog[1].includes('--session-id'))
+check('同一群的两条消息落在同一条线程', r2.threadId === r1.threadId)
+check('流水按线程归组', listMessages(db, a1, 50, r1.threadId).filter((m) => m.status === 'done').length === 2)
 check('两条消息写进流水且状态 done', listMessages(db, a1).filter((m) => m.status === 'done').length === 2)
 const doneRow = listMessages(db, a1).find((m) => m.status === 'done')
 check('思考过程落库（沟通记录要能展开看）', doneRow?.thinking === '先想一下', JSON.stringify(doneRow?.thinking))
@@ -202,25 +221,25 @@ check('空文本被忽略', (await dispatcher.handle({ ...dt, msgId: 'm-4', text
 check('未绑定的机器人不处理', (await dispatcher.handle({ ...dt, msgId: 'm-5', robotKey: 'unknown' })).status === 'no_assistant')
 check('ignored 也留一条流水便于排查', listMessages(db, a1).some((m) => m.status === 'ignored'))
 
-console.log('\n== 6. 多助理互不冲突 ==')
+console.log('\n== 6. 多机器人互不冲突 ==')
 const otherEvent = { ...fs, msgId: 'm-6', text: '翻译这段话' }
 const r3 = await dispatcher.handle(otherEvent)
 check('第二个助理独立处理完成', r3.status === 'done', JSON.stringify(r3))
-const sid1 = getAssistant(db, a1).session_id
-const sid2 = getAssistant(db, a2).session_id
-check('两个助理各自拿到不同且非空的 session_id', Boolean(sid1) && Boolean(sid2) && sid1 !== sid2)
-check('两个助理的流水按 assistant_id 分开', listMessages(db, a2).length === 1 && listMessages(db, a1).length >= 4)
+const sid1 = findThread(db, a1, 'cid-1')?.session_id
+const sid2 = findThread(db, a2, 'oc-1')?.session_id
+check('两个机器人各自拿到不同且非空的 session_id', Boolean(sid1) && Boolean(sid2) && sid1 !== sid2)
+check('两个机器人的流水按 assistant_id 分开', listMessages(db, a2).length === 1 && listMessages(db, a1).length >= 4)
 const [p1, p2] = await Promise.all([
 	dispatcher.handle({ ...dt, msgId: 'm-7', text: 'A 并发' }),
 	dispatcher.handle({ ...fs, msgId: 'm-8', text: 'B 并发' }),
 ])
-check('不同助理可并行', p1.status === 'done' && p2.status === 'done')
+check('不同群可并行', p1.status === 'done' && p2.status === 'done')
 check('并发确实发生了（全局闸门允许 2）', maxRunning >= 2, `maxRunning=${maxRunning}`)
-const sameAssistant = await Promise.all([
-	dispatcher.handle({ ...dt, msgId: 'm-9', text: '同助理 A' }),
-	dispatcher.handle({ ...dt, msgId: 'm-10', text: '同助理 B' }),
+const sameThread = await Promise.all([
+	dispatcher.handle({ ...dt, msgId: 'm-9', text: '同群 A' }),
+	dispatcher.handle({ ...dt, msgId: 'm-10', text: '同群 B' }),
 ])
-check('同一助理两条消息都完成且串行', sameAssistant.every((r) => r.status === 'done') && maxRunning >= 2)
+check('同一个群两条消息都完成且串行', sameThread.every((r) => r.status === 'done'))
 
 console.log('\n== 7. 出站回落 / 失败 / 删除 ==')
 const noReplyDispatcher = createAssistantDispatcher({ db, exec, post, secret: () => undefined, buildReply: () => ({}) })
@@ -311,7 +330,186 @@ console.log('\n== 11. 人设只在首轮注入（否则会话记录每条都带�
 	const promptOf = (args) => String(args[args.length - 1] ?? '')
 	check('首轮 prompt 带人设（建立口径）', promptOf(personaLog[0]).includes('你是群助理'), promptOf(personaLog[0]))
 	check('次轮 prompt 不再重复人设', !promptOf(personaLog[1]).includes('你是群助理'), promptOf(personaLog[1]))
-	check('次轮 session_id 已回写（所以才能判断不是首轮）', Boolean(getAssistant(db, a3).session_id))
+	check('次轮 session_id 已回写（所以才能判断不是首轮）', Boolean(findThread(db, a3, 'cid-1')?.session_id))
+}
+
+console.log('\n== 12. 一个群一个对话（唯一键 = 机器人 + 群）==')
+{
+	const a4 = createAssistant(db, {
+		team: 'team-a',
+		name: '多群助理',
+		platform: 'dingtalk',
+		robotKey: 'ding-robot-multi',
+		systemPrompt: '你是群助理',
+		by: 'tester',
+	})
+	const multiLog = []
+	const multi = async (args) => {
+		multiLog.push(args)
+		return `${JSON.stringify({ type: 'session', sessionId: `session-g-${multiLog.length}` })}\n${JSON.stringify({ type: 'text', text: 'ok' })}\n`
+	}
+	const multiDispatcher = createAssistantDispatcher({
+		db,
+		exec: multi,
+		post: async () => ({ ok: true }),
+		secret: () => 'https://example.com/outbound',
+	})
+	const inGroup = (cid, msgId, text = '问题') => ({
+		...dt,
+		robotKey: 'ding-robot-multi',
+		conversationId: cid,
+		msgId,
+		text,
+	})
+
+	await multiDispatcher.handle(inGroup('cid-g1', 'g1-1', '一群第一问'))
+	await multiDispatcher.handle(inGroup('cid-g2', 'g2-1', '二群第一问'))
+	const s1 = findThread(db, a4, 'cid-g1')?.session_id
+	const s2 = findThread(db, a4, 'cid-g2')?.session_id
+	check('同一个机器人在两个群各自建了一条线程', listThreads(db, a4).length === 2, String(listThreads(db, a4).length))
+	check('两个群拿到不同的 dsh 会话（上下文不串）', Boolean(s1) && Boolean(s2) && s1 !== s2, `${s1} vs ${s2}`)
+	check('每个群的首轮都不带 --session-id', !multiLog[0].includes('--session-id') && !multiLog[1].includes('--session-id'))
+
+	await multiDispatcher.handle(inGroup('cid-g2', 'g2-2', '二群第二问'))
+	check(
+		'同群第二轮续用该群自己的会话',
+		multiLog[2].includes('--session-id') && multiLog[2].includes(s2) && !multiLog[2].includes(s1),
+		JSON.stringify(multiLog[2].slice(-4)),
+	)
+	check('首轮 prompt 带来源标记（侧栏能分清是哪个群）', /钉钉/.test(String(multiLog[0].at(-1))) && /cid-g1/.test(String(multiLog[0].at(-1))))
+	check('群名有了就补成线程标题', resolveThread(db, getAssistant(db, a4), 'cid-g1', '销售一群').title === '销售一群')
+	check('线程标题可读（没群名时退化成 id 尾部）', threadLabel({ conversation_id: 'cid-abcdefgh' }).startsWith('群 …'))
+
+	// 群里的闲聊（没 @）只登记流水，不该顺手长出一条空会话
+	const quiet = await multiDispatcher.handle({ ...inGroup('cid-quiet', 'q-1', '闲聊'), mentioned: false })
+	check('群里的非 @ 消息不会长出空线程', quiet.status === 'ignored' && findThread(db, a4, 'cid-quiet') === undefined)
+
+	// 白名单是准入、不是路由：配了就只认列出来的群
+	setChannels(db, a4, ['cid-g1'])
+	check(
+		'配了白名单后白名单外的群不处理',
+		findAssistantForEvent(db, { platform: 'dingtalk', robotKey: 'ding-robot-multi', conversationId: 'cid-g2' }) === undefined,
+	)
+	check(
+		'白名单里的群仍然命中',
+		findAssistantForEvent(db, { platform: 'dingtalk', robotKey: 'ding-robot-multi', conversationId: 'cid-g1' })?.id === a4,
+	)
+	setChannels(db, a4, [])
+	check('清空白名单后恢复不限群', Boolean(findAssistantForEvent(db, { platform: 'dingtalk', robotKey: 'ding-robot-multi', conversationId: 'cid-g2' })))
+
+	// 跨群并行、同群串行：队列键必须细到线程
+	const trace = []
+	const slowDispatcher = createAssistantDispatcher({
+		db,
+		exec: async (args) => {
+			const prompt = String(args.at(-1))
+			const tag = prompt.includes('长任务') ? 'A' : prompt.includes('短任务') ? 'B' : prompt.includes('排队') ? 'C' : 'D'
+			trace.push(`start:${tag}`)
+			await new Promise((done) => setTimeout(done, 15))
+			trace.push(`end:${tag}`)
+			return `${JSON.stringify({ type: 'text', text: 'ok' })}\n`
+		},
+		post: async () => ({ ok: true }),
+		secret: () => 'https://example.com/outbound',
+		concurrency: 4,
+	})
+	await Promise.all([
+		slowDispatcher.handle(inGroup('cid-p1', 'p-1', '长任务')),
+		slowDispatcher.handle(inGroup('cid-p2', 'p-2', '短任务')),
+	])
+	check('不同群同时开跑，A 群的长任务不堵 B 群', trace.indexOf('start:B') < trace.indexOf('end:A'), JSON.stringify(trace))
+
+	const serial = []
+	const serialDispatcher = createAssistantDispatcher({
+		db,
+		exec: async (args) => {
+			serial.push(`start:${String(args.at(-1)).slice(-2)}`)
+			await new Promise((done) => setTimeout(done, 10))
+			serial.push(`end:${String(args.at(-1)).slice(-2)}`)
+			return `${JSON.stringify({ type: 'text', text: 'ok' })}\n`
+		},
+		post: async () => ({ ok: true }),
+		secret: () => 'https://example.com/outbound',
+		concurrency: 4,
+	})
+	await Promise.all([
+		serialDispatcher.handle(inGroup('cid-s1', 's-1', '排队甲')),
+		serialDispatcher.handle(inGroup('cid-s1', 's-2', '排队乙')),
+	])
+	check('同一个群的两条消息严格串行（不抢 session.lock）', serial[0].startsWith('start') && serial[1].startsWith('end'), JSON.stringify(serial))
+
+	const t1 = findThread(db, a4, 'cid-g1')
+	check('重置线程只断开会话、历史与线程都留着', resetThread(db, t1.id) && findThread(db, a4, 'cid-g1').session_id === null && listThreads(db, a4).length >= 2)
+	check('重置后同群下一条消息会新建会话', (await multiDispatcher.handle(inGroup('cid-g1', 'g1-2', '重新开始')))?.threadId === t1.id && Boolean(findThread(db, a4, 'cid-g1').session_id))
+}
+
+console.log('\n== 13. 管理接口：群线程 / 按群过滤 / 重置 ==')
+{
+	const runtime = createAssistantRuntime({
+		db,
+		json: (res, status, body) => {
+			res.status = status
+			res.body = body
+		},
+		readJson: async (req) => req.body || {},
+		overrides: {
+			// 会话 id 必须每次不同：同毫秒返回同一个会让第二条线程撞上 UNIQUE(session_id)
+			exec: (() => {
+				let seq = 0
+				return async () =>
+					`${JSON.stringify({ type: 'session', sessionId: `session-api-${++seq}` })}\n${JSON.stringify({ type: 'text', text: '接口回答' })}\n`
+			})(),
+			post: async () => ({ ok: true }),
+			secret: () => 'https://example.com/outbound',
+			sender: { send: async () => {} },
+		},
+	})
+	const call = async (method, path, body) => {
+		const res = {}
+		const url = new URL(`http://x${path}`)
+		const handled = await runtime.handleAdmin({ method, body }, res, url)
+		return { handled, status: res.status, body: res.body }
+	}
+
+	const created = await call('POST', '/assistants', {
+		team: 'team-a',
+		name: '接口助理',
+		platform: 'dingtalk',
+		robotKey: 'ding-robot-api',
+		channels: ['cid-api-1', 'cid-api-2'],
+		by: 'tester',
+	})
+	const apiId = created.body?.assistant?.id
+	check('新增接口能建助理', created.status === 201 && Boolean(apiId))
+	check('新增时 channels 写进白名单', listChannels(db, apiId).length === 2, JSON.stringify(listChannels(db, apiId)))
+
+	const empty = await call('GET', `/assistants/${apiId}/threads`)
+	check('新助理还没有群线程', empty.status === 200 && empty.body.threads.length === 0)
+
+	// 两条测试消息分别落在两个群上
+	for (const [cid, msg] of [['cid-api-1', '一群'], ['cid-api-2', '二群']]) {
+		await call('POST', `/assistants/${apiId}/test`, { conversationId: cid, text: msg })
+	}
+	const threads = (await call('GET', `/assistants/${apiId}/threads`)).body.threads
+	check('测试消息按群建出两条线程', threads.length === 2, JSON.stringify(threads.map((t) => t.conversation_id)))
+	check('线程带回消息数与会话状态', threads.every((t) => Number(t.message_count) === 1 && t.session_id), JSON.stringify(threads[0]))
+
+	const one = threads.find((t) => t.conversation_id === 'cid-api-1')
+	const scoped = await call('GET', `/assistants/${apiId}/messages?threadId=${one.id}`)
+	check('流水可按群过滤', scoped.status === 200 && scoped.body.messages.length === 1, JSON.stringify(scoped.body?.messages?.length))
+
+	const reset = await call('POST', `/assistants/${apiId}/threads/${one.id}/reset`)
+	check('重置指定群的会话', reset.status === 200 && findThread(db, apiId, 'cid-api-1').session_id === null)
+	const missingThread = await call('POST', `/assistants/${apiId}/threads/at-not-exist/reset`)
+	check('重置不存在的线程返回 404', missingThread.status === 404, String(missingThread.status))
+
+	const updated = await call('POST', `/assistants/${apiId}`, { name: '接口助理改名', channels: 'cid-api-3' })
+	check('改白名单用逗号串也认', updated.status === 200 && listChannels(db, apiId)[0]?.conversation_id === 'cid-api-3')
+	const kept = await call('POST', `/assistants/${apiId}`, { name: '只改名' })
+	check('只改名不会清空白名单', kept.status === 200 && listChannels(db, apiId).length === 1)
+
+	const del = await call('DELETE', `/assistants/${apiId}`)
+	check('删除助理连线程与白名单一起清', del.status === 200 && listThreads(db, apiId).length === 0 && listChannels(db, apiId).length === 0)
 }
 
 console.log(`\n${passed} 通过 / ${failed} 失败`)
