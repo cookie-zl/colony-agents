@@ -46,12 +46,12 @@ DSH_VERSION=0.2.1-rc.5
 
 ## 阶段 2：部署（Helm）
 
-Chart 在 `deploy/helm/colony`。Zadig 的 Helm 部署阶段填：
+Chart 在 `deploy/helm/colony-agents`。Zadig 的 Helm 部署阶段填：
 
 | 字段 | 值 |
 | --- | --- |
-| Chart 路径 | `deploy/helm/colony` |
-| values 文件 | `deploy/helm/colony/values.yaml` + 你的 `values-<env>.yaml` |
+| Chart 路径 | `deploy/helm/colony-agents` |
+| values 文件 | `deploy/helm/colony-agents/values.yaml` + 你的 `values-<env>.yaml` |
 | release 名 | `colony` |
 | 命名空间 | 如 `ai-tools` |
 | 变量覆盖 | 见下表 |
@@ -72,7 +72,7 @@ Chart 在 `deploy/helm/colony`。Zadig 的 Helm 部署阶段填：
 Zadig 的「Kubernetes YAML 部署」同样能用：本地渲染一份清单再提交给 Zadig 做变量替换。
 
 ```bash
-helm template colony deploy/helm/colony \
+helm template colony-agents deploy/helm/colony-agents \
   --namespace ai-tools \
   --set image.repository=harbor.example.com/dsh/colony-agents \
   --set image.tag=a1b2c3d \

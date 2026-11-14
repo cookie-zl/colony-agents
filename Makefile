@@ -24,7 +24,7 @@ export DSH_TRUSTED_HOST ?= $(TEAM).localhost
 export DSH_PUBLIC_URL ?= http://$(TEAM).localhost:$(TEAM_PORT)/
 export EDGE_PORT ?= $(TEAM_PORT)
 
-HELM_CHART  := deploy/helm/colony
+HELM_CHART  := deploy/helm/colony-agents
 # 没装 helm 也能校验：走容器里的 helm。本机已装 helm 时可用 HELM=helm 覆盖。
 HELM        ?= docker run --rm -v $(CURDIR)/$(HELM_CHART):/apps alpine/helm:3.16.3
 
@@ -132,7 +132,7 @@ pack: ## 本地打出插件 tarball 到 dist/（仅用于检查产物，镜像�
 # ---------- Helm ----------
 .PHONY: helm-template
 helm-template: ## 渲染 Helm 模板（本地校验用）
-	$(HELM) template colony /apps --namespace ai-tools
+	$(HELM) template colony-agents /apps --namespace ai-tools
 
 .PHONY: helm-lint
 helm-lint: ## Helm lint

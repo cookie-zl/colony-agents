@@ -24,7 +24,7 @@ cd "$ROOT"
 : "${IMAGE_REPOSITORY:?需要设置 IMAGE_REPOSITORY，例如 harbor.example.com/dsh/colony-agents}"
 
 IMAGE_TAG=${IMAGE_TAG:-$(git rev-parse --short HEAD 2>/dev/null || date +%Y%m%d%H%M)}
-DSH_VERSION=${DSH_VERSION:-$(sed -n 's/^appVersion:[[:space:]]*"\(.*\)"/\1/p' deploy/helm/colony/Chart.yaml)}
+DSH_VERSION=${DSH_VERSION:-$(sed -n 's/^appVersion:[[:space:]]*"\(.*\)"/\1/p' deploy/helm/colony-agents/Chart.yaml)}
 NPM_REGISTRY=${NPM_REGISTRY:-https://registry.npmmirror.com}
 APT_MIRROR=${APT_MIRROR:-mirrors.aliyun.com}
 PUSH=${PUSH:-true}
