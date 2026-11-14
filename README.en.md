@@ -31,7 +31,7 @@ capability distribution, chat entry points, durable state.**
 It does not rewrite the agent, and it is not another chat front-end. It is the agent's
 *building management* — access control, utilities, upkeep.
 
-## Three problems it solves
+## Three problems it solves in practice
 
 ### 1. A shared agent, with tenants kept apart
 
