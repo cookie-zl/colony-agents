@@ -233,8 +233,9 @@ export function createAssistantRuntime({ db, json, readJson, overrides = {} }) {
 					systemPrompt: body.systemPrompt ?? null,
 					by: String(body.by || 'console'),
 				})
-				// channels 是「多群白名单」，conversationId 只是它的单值简写；两个都传时以数组为准
-				if (Array.isArray(body.channels)) setChannels(db, id, body.channels, String(body.by || 'console'))
+				// channels 是「多群白名单」，conversationId 只是它的单值简写；两个都传时以数组为准。
+				// 字符串（逗号分隔）也收：面板与门户发过来的就是这种形态，setChannels 内部会拆。
+				if (body.channels !== undefined) setChannels(db, id, body.channels, String(body.by || 'console'))
 				saveCredentials(getAssistant(db, id), body.credentials)
 				changed()
 				return reply(res, 201, { assistant: getAssistant(db, id) })

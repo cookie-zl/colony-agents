@@ -483,6 +483,18 @@ console.log('\n== 13. 管理接口：群线程 / 按群过滤 / 重置 ==')
 	check('新增接口能建助理', created.status === 201 && Boolean(apiId))
 	check('新增时 channels 写进白名单', listChannels(db, apiId).length === 2, JSON.stringify(listChannels(db, apiId)))
 
+	// 面板发过来的是「逗号分隔的字符串」，不是数组
+	const created2 = await call('POST', '/assistants', {
+		team: 'team-a',
+		name: '字符串白名单',
+		platform: 'dingtalk',
+		robotKey: 'ding-robot-api2',
+		channels: 'cid-s1, cid-s2',
+		by: 'tester',
+	})
+	check('新增时 channels 传字符串也能拆成两条', listChannels(db, created2.body?.assistant?.id).length === 2)
+	await call('DELETE', `/assistants/${created2.body?.assistant?.id}`)
+
 	const empty = await call('GET', `/assistants/${apiId}/threads`)
 	check('新助理还没有群线程', empty.status === 200 && empty.body.threads.length === 0)
 
