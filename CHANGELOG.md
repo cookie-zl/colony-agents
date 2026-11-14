@@ -4,31 +4,31 @@
 
 ## 未发布
 
-### 改名：产品名统一为 Colony Agents
-
-之前仓库叫 `colony-agents`、产品叫 `Colony`，两套名字容易混。现在全部统一，升级时注意：
-
-| 项 | 旧 | 新 |
-| --- | --- | --- |
-| 镜像 | `colony:<ver>` | `colony-agents:<ver>` |
-| 账号服务镜像 | `colony-auth:dev` | `colony-agents-auth:dev` |
-| npm 包 | `@colony/dsh-*` | `@colony-agents/dsh-*` |
-| Helm chart | `deploy/helm/colony` | `deploy/helm/colony-agents` |
-| compose 项目名 | `colony` | `colony-agents` |
-| 仓库 | `cookie-zl/colony` | `cookie-zl/colony-agents`（旧地址 301） |
-
-`team-up.sh` / `make up` 一直用 `-p dsh-<team>`，所以按团队起的实例**卷名不变、数据不受影响**；
-只有直接用 `docker compose` 默认项目名起过的人才需要迁一下卷。
-
 ### 计划
 
 - 飞书 Stream 长连接（现在只支持 HTTP 回调，需要公网可达）
 - 助理会话标题不再被首条人设占满
 - 归档恢复的增量校验（现在整包恢复）
 
-## 0.1.0 — 2026-11-13
+## 0.1.0 — 2026-11-14
 
-首次公开。此前是内部自用版本，没有对外变更记录，这里列出**当前已具备的能力**，作为后续 diff 的基线。
+首个公开发布。此前是内部自用版本，没有对外变更记录，这里列出**当前已具备的能力**，作为后续 diff 的基线。
+
+### 命名
+
+首次发布就统一成一套名字（内部迭代期间曾用过 `colony` / `@colony/*`，本版起不再使用）：
+
+| 用途 | 名称 |
+| --- | --- |
+| 产品 | `Colony Agents` |
+| 平台仓 | `colony-agents` |
+| 插件仓 | `colony-dsh-plugins` |
+| 镜像 | `colony-agents:<dsh 版本>` |
+| npm 包 | `@colony-agents/dsh-*` |
+| Helm chart | `deploy/helm/colony-agents` |
+
+> 镜像 tag 跟的是 **dsh 版本**（当前 `0.2.1-rc.5`），不是产品版本——升级 dsh 才换 tag，
+> 产品自身的改动见本文件。
 
 ### 平台
 
