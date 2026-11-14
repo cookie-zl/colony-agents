@@ -68,7 +68,7 @@ everyone, nobody knows which version is installed, and tokens live in personal c
 | Capability | Detail |
 | --- | --- |
 | Two package kinds | `skill` (prompts / procedures) and `mcp` (connectors: GitHub, filesystem, …), same index and install flow |
-| Versions | Every package carries a `version`; the install ledger records which version, who, and from where |
+| Versions | Every package carries a `version`; the install ledger records which version, who, and from where. The index keeps one current version per name, so upgrading means reinstalling rather than picking among versions |
 | Upgrades | Reinstalling replaces the marked block instead of appending a second one (stacking yields "upgraded but still running the old version"), then `dsh --dump-config` validates; failure rolls back |
 | Distribution | Public, team-private, or **point-to-point share** which the receiving team can accept or reject |
 | Credentials | MCP env vars (e.g. `GITHUB_TOKEN`) are entered at install time, stored in the team's own volume, never logged by the control plane |
