@@ -1215,14 +1215,17 @@ ${
 }
 
 // ---------- 助理 ----------
-// 一个助理 = 一个 IM 机器人 + 一个固定 dsh 会话。这里只管展示与提交表单，
-// 状态、凭据、消息流水全部走控制面 /assistants（凭据在控制面加密落 team_secrets）。
+// 一个助理 = 一个 IM 机器人 + 每群一条 dsh 会话。这里只管展示与提交表单，
+// 状态、凭据、群线程、消息流水全部走控制面 /assistants（凭据在控制面加密落 team_secrets）。
 
 /** 助理卡片：信息 + 编辑 + 测试 / 启停 / 删除。凭据只显示「已配置」，永不回显值。 */
 function assistantCard(a, teamId) {
 	const e = escapeHtml
 	const platformLabel = a.platform === 'dingtalk' ? '钉钉' : '飞书'
-	const sessionText = a.session_id ? e(a.session_id) : '首条消息后自动创建'
+	// 白名单是多群；地址栏里用逗号串展示与提交，和面板输入框保持一致
+	const channels = (a.channels || []).map((c) => c.conversation_id).filter(Boolean)
+	const scopeText = channels.length ? channels.map((c) => e(c)).join('，') : '不限群'
+	const threadText = `群对话 ${Number(a.threads || 0)} 条`
 	// 钉钉走 Stream：真正决定能不能收消息的是 Client ID + Client Secret；
 	// 飞书没有 Stream 通道，仍然看 Verification Token。
 	const streamOk = Boolean(a.credentials?.appKey && a.credentials?.appSecret)
@@ -1231,12 +1234,12 @@ function assistantCard(a, teamId) {
 	const verifyOk = a.platform === 'feishu' ? Boolean(a.credentials?.verifyToken) : streamOk
 	return `<div class="card">
 <h2>${e(a.name)}<span class="tag">${platformLabel}</span><span class="tag">${a.enabled ? '已启用' : '已停用'}</span></h2>
-<p class="meta">机器人 ${e(a.robot_key)} · 群 ${e(a.conversation_id || '不限')} · 会话 ${sessionText}</p>
+<p class="meta">机器人 ${e(a.robot_key)} · 服务范围 ${scopeText} · ${threadText}</p>
 <p class="meta">${verifyLabel} ${verifyOk ? '<b style="color:#2e7d32">已配置</b>' : '<b style="color:#c0392b">未配置，收不到消息</b>'} · 出站 webhook ${a.credentials?.outboundWebhook ? '已配置' : '未配置（用消息里的临时地址）'}</p>
 <form method="post" action="/__auth/assistants/update" class="row">
 <input type="hidden" name="team" value="${e(teamId)}"><input type="hidden" name="id" value="${e(a.id)}"><input type="hidden" name="platform" value="${e(a.platform)}">
 <label>名称 <input name="name" value="${e(a.name)}"></label>
-<label>群 ID <input name="conversationId" value="${e(a.conversation_id || '')}" placeholder="留空=不限群"></label>
+<label>只服务这些群 <input name="channels" value="${e(channels.join(','))}" placeholder="群 ID，多个用逗号分隔；留空=不限群"></label>
 <label>人设 <input name="systemPrompt" value="${e(a.system_prompt || '')}" placeholder="附在每条消息前的指令"></label>
 <label>出站 webhook <input name="outboundWebhook" placeholder="留空不修改"></label>
 ${a.platform === 'dingtalk'
@@ -1285,13 +1288,13 @@ ${
 		: ''
 	const createHtml = management
 		? `<div class="card"><h2>新增助理</h2>
-<p class="meta">一个助理独占一个机器人与一个 dsh 会话，多个助理互不冲突。当前版本只有「群里 @ 机器人」的消息才会被处理。</p>
+<p class="meta">一个助理 = 一份机器人配置，对话按群拆分：同一个机器人在 A 群和 B 群各有一条 dsh 会话，上下文不串。当前版本只有「群里 @ 机器人」的消息才会被处理。</p>
 <form method="post" action="/__auth/assistants/create" class="row">
 <input type="hidden" name="team" value="${e(teamId)}">
 <label>名称 <input name="name" placeholder="日报助理" required></label>
 <label>平台 <select name="platform"><option value="dingtalk">钉钉</option><option value="feishu">飞书</option></select></label>
 <label>机器人标识 <input name="robotKey" placeholder="钉钉填 Client ID / 飞书填 App ID" required></label>
-<label>群 ID <input name="conversationId" placeholder="留空=不限群"></label>
+<label>只服务这些群 <input name="channels" placeholder="群 ID，多个用逗号分隔；留空=不限群"></label>
 <label>人设 <input name="systemPrompt" placeholder="附在每条消息前的指令"></label>
 <label>Client ID（钉钉） <input name="appKey" placeholder="钉钉必填，飞书留空"></label>
 <label>Client Secret（钉钉） <input name="appSecret" type="password" placeholder="钉钉必填，飞书留空"></label>
@@ -1667,6 +1670,8 @@ const server = http.createServer(async (req, res) => {
 				agentId: text('agentId'),
 				...(value ? (platform === 'feishu' ? { verifyToken: value } : { signSecret: value }) : {}),
 			})
+			// 表单里的「只服务这些群」是逗号分隔的一串；空数组 = 不限群
+			const channels = (raw) => String(raw || '').split(/[,，\s]+/).map((s) => s.trim()).filter(Boolean)
 			try {
 				if (action === 'create') {
 					await callConsole('/assistants', 'POST', {
@@ -1674,7 +1679,7 @@ const server = http.createServer(async (req, res) => {
 						name: String(form.get('name') || '新助理').trim(),
 						platform,
 						robotKey: String(form.get('robotKey') || '').trim(),
-						conversationId: String(form.get('conversationId') || '').trim() || null,
+						channels: channels(form.get('channels')),
 						systemPrompt: String(form.get('systemPrompt') || '').trim() || null,
 						credentials: credentials(sign),
 						by: user.id,
@@ -1682,7 +1687,7 @@ const server = http.createServer(async (req, res) => {
 				} else if (action === 'update') {
 					await callConsole(`/assistants/${encodeURIComponent(id)}`, 'POST', {
 						name: String(form.get('name') || '').trim(),
-						conversationId: String(form.get('conversationId') || '').trim() || null,
+						channels: channels(form.get('channels')),
 						systemPrompt: String(form.get('systemPrompt') || '').trim() || null,
 						credentials: credentials(sign),
 					})
@@ -1807,6 +1812,24 @@ const server = http.createServer(async (req, res) => {
 			}
 		}
 
+		if (pathname === '/__auth/api/assistants/threads') {
+			if (!user) return json(res, 401, { error: '未登录' })
+			if (!isMember(user, cfg.team) && !isAdmin(user)) return json(res, 403, { error: '不是这个团队的成员' })
+			const id = String(url.searchParams.get('id') || '')
+			if (!id) return json(res, 400, { error: '缺少 id' })
+			try {
+				// 控制面只认 id，所以先确认这条助理属于本团队，避免按 id 猜别人的对话
+				const list = await callConsole(`/assistants?team=${encodeURIComponent(cfg.team)}`)
+				if (!(list.assistants || []).some((a) => a.id === id)) {
+					return json(res, 404, { error: '这条助理不属于当前团队' })
+				}
+				const view = await callConsole(`/assistants/${encodeURIComponent(id)}/threads`)
+				return json(res, 200, { threads: view.threads || [] })
+			} catch (err) {
+				return json(res, 502, { error: `控制面不可用：${err.message}` })
+			}
+		}
+
 		if (pathname === '/__auth/api/assistants/action' && req.method === 'POST') {
 			if (!user) return json(res, 401, { error: '未登录' })
 			if (!canManage(user, cfg.team)) return json(res, 403, { error: '只有这个团队的 owner 可以改动' })
@@ -1818,6 +1841,13 @@ const server = http.createServer(async (req, res) => {
 			}
 			const action = String(body.action || '')
 			const id = String(body.id || '')
+			// 群白名单：数组或「逗号分隔的一串」都收（面板里就是一个输入框）。
+			// undefined 表示「这次不动白名单」——不能把「没提」当成「清空」。
+			const channels = (() => {
+				if (Array.isArray(body.channels)) return body.channels.map((c) => String(c ?? '').trim()).filter(Boolean)
+				if (typeof body.channels === 'string') return body.channels.split(/[,，\s]+/).map((c) => c.trim()).filter(Boolean)
+				return undefined
+			})()
 			// 凭据只收非空字符串：空值表示「不修改」，不能把已配的覆盖成空
 			const credentials = {}
 			for (const [field, value] of Object.entries(body.credentials || {})) {
@@ -1830,7 +1860,7 @@ const server = http.createServer(async (req, res) => {
 						name: String(body.name || '').trim() || '新助理',
 						platform: String(body.platform || ''),
 						robotKey: String(body.robotKey || '').trim(),
-						conversationId: String(body.conversationId || '').trim() || null,
+						...(channels?.length ? { channels } : { conversationId: String(body.conversationId || '').trim() || null }),
 						systemPrompt: String(body.systemPrompt || '').trim() || null,
 						by: user.id,
 						credentials,
@@ -1840,11 +1870,18 @@ const server = http.createServer(async (req, res) => {
 					if (!id) return json(res, 400, { error: '缺少 id' })
 					await callConsole(`/assistants/${encodeURIComponent(id)}`, 'POST', {
 						name: String(body.name || '').trim() || undefined,
-						conversationId: String(body.conversationId || '').trim() || null,
+						// 只在真的提交了 channels 时才带上：老面板仍走 conversationId，两条路都保留
+						...(channels !== undefined ? { channels } : { conversationId: String(body.conversationId || '').trim() || null }),
 						systemPrompt: String(body.systemPrompt || '').trim() || null,
 						credentials,
 					})
 					audit(req, user, { path: pathname, event: 'assistant-update', target: id })
+				} else if (action === 'resetThread') {
+					if (!id) return json(res, 400, { error: '缺少 id' })
+					const threadId = String(body.threadId || '')
+					if (!threadId) return json(res, 400, { error: '缺少 threadId' })
+					await callConsole(`/assistants/${encodeURIComponent(id)}/threads/${encodeURIComponent(threadId)}/reset`, 'POST', {})
+					audit(req, user, { path: pathname, event: 'assistant-thread-reset', target: id })
 				} else if (action === 'toggle') {
 					if (!id) return json(res, 400, { error: '缺少 id' })
 					const enabled = body.enabled !== false
