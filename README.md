@@ -218,6 +218,7 @@ flowchart TB
 | [20 · 产物归因](docs/20-产物归因与配置热生效.md) | 每轮改了哪些文件、配置怎么热生效 |
 
 全量索引（含功能清单 11 篇）：[docs/features/README.md](docs/features/README.md)。
+还没做的、以及**明确不做**的：[docs/ROADMAP.md](docs/ROADMAP.md)——按「不做会不会出事」排序，每条写清现状与目标。
 
 ---
 

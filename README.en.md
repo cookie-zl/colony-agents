@@ -101,6 +101,7 @@ flowchart TB
 
 - Design notes (why, and what broke): [`docs/01`–`docs/20`](docs/features/README.md)
 - Feature inventory (what exists, where, and how it was verified): [`docs/features/`](docs/features/README.md)
+- Roadmap, known gaps and things we deliberately did **not** build: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 Chinese is the primary documentation language; English translations are welcome.
 
