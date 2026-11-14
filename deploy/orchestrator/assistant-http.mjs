@@ -13,6 +13,7 @@
  * @module deploy/orchestrator/assistant-http
  */
 import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { REPO } from './store.mjs'
 import { dockerEnv } from './runtime.mjs'
 import { deleteSecret, getSecret, putSecret } from './secrets.mjs'
@@ -278,7 +279,9 @@ export function createAssistantRuntime({ db, json, readJson, overrides = {} }) {
 			const event = {
 				platform: assistant.platform,
 				robotKey: assistant.robot_key,
-				msgId: `test-${Date.now()}`,
+				// msgId 会被幂等键吃掉：只用毫秒时间戳时，连点两次「测试发送」可能落在同一毫秒，
+				// 第二条就被判成重复推送、悄悄不跑。加一段随机，保证每次点击都是一条新消息。
+				msgId: `test-${Date.now()}-${randomUUID().slice(0, 8)}`,
 				conversationId,
 				conversationType: Number(body.conversationType) || (conversationId ? 2 : undefined),
 				senderId: body.userId ? String(body.userId) : undefined,
