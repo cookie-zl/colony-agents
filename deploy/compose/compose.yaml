@@ -1,7 +1,7 @@
 name: colony-agents
 
 # 本地 / 单机 VM 跑法：一个 dsh 容器 + 一个 Caddy 入口。
-# 用法见 docs/01-本地运行.md。生产走 Helm（deploy/helm/colony），不要用这个。
+# 用法见 docs/01-本地运行.md。生产走 Helm（deploy/helm/colony-agents），不要用这个。
 
 x-dsh-env: &dsh-env
   # 模型请求走控制面网关：baseURL 指过去，DEEPSEEK_API_KEY 里放的是「网关 token」，

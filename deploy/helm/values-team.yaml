@@ -2,7 +2,7 @@
 #
 # 不要直接改这个文件里的 host：deploy-teams.sh 会用 teams.txt 逐条 --set 覆盖。
 # 手工验证一条：
-#   helm template dsh-team-a deploy/helm/colony -n ai-tools \
+#   helm template dsh-team-a deploy/helm/colony-agents -n ai-tools \
 #     -f deploy/helm/values-team.yaml \
 #     --set ingress.host=dsh-team-a.example.com \
 #     --set dsh.publicUrl=https://dsh-team-a.example.com/

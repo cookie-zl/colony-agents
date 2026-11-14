@@ -23,7 +23,7 @@
 ## 部署前检查清单
 
 - [ ] `deploy/compose/.env` 里没有明文模型 Key（用 `make team-key`）
-- [ ] `deploy/auth/accounts.json` 不是仓库里的示例账号（`admin / demo1234` 必须改掉）
+- [ ] `deploy/auth/accounts.json` 不是仓库里的示例账号（`alice / dsh-demo-1234` 等必须改掉）
 - [ ] 入口前面有真鉴权（不要只依赖 dsh 自己的 token）
 - [ ] `deploy/orchestrator/secret.key`、`console-token`、`tokens/*` 权限 600，且不进版本库
 - [ ] 对外暴露前确认 `plugins.txt` 里每个插件都看过源码、锁了版本

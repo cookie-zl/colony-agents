@@ -1,36 +1,77 @@
 {
-  "$comment": "演示用账号库。首次运行：cp deploy/auth/accounts.example.json deploy/auth/accounts.json（或 make seed）。演示账号 admin / demo1234，只用于本机，别带到任何能公网访问的环境。",
+  "$comment": "演示用账号库。首次运行：cp deploy/auth/accounts.example.json deploy/auth/accounts.json（或 make seed）。账号 alice / bob / carol / dave，口令统一 dsh-demo-1234；只用于本机，别带到任何能公网访问的环境。",
   "teams": {
     "team-a": {
-      "name": "演示团队",
+      "name": "研发组",
       "desc": "一个团队 = 一个隔离实例 = 一组独立卷",
       "host": "team-a.localhost",
-      "port": 8085,
-      "owner": "admin",
+      "port": 8080,
+      "owner": "alice",
       "roles": {
-        "admin": "owner",
-        "member": "member"
+        "alice": "owner",
+        "bob": "member"
+      }
+    },
+    "team-b": {
+      "name": "产品组",
+      "desc": "第二团队：验证一机多团队与独立入口",
+      "host": "team-b.localhost",
+      "port": 8081,
+      "owner": "carol",
+      "roles": {
+        "alice": "member",
+        "carol": "owner"
+      }
+    },
+    "team-c": {
+      "name": "数据组",
+      "desc": "第三团队：验证闲置休眠与唤醒",
+      "host": "team-c.localhost",
+      "port": 8083,
+      "owner": "alice",
+      "roles": {
+        "alice": "owner"
       }
     }
   },
   "users": {
-    "admin": {
-      "name": "管理员",
-      "salt": "f7dad49f2302cbcf28e8b47864716fe9",
-      "hash": "767d5bb70528c3268b9d6b4d421aa11487bc5b9c3f10cca6ddb45dfb53516281",
+    "alice": {
+      "name": "爱丽丝（管理员）",
+      "salt": "da85f571659a33a912ca17cc8fde7ab6",
+      "hash": "35e9380956edc35b7b151a2c340e16ad4a14158b73de4112f02a552516e4075c",
       "teams": [
-        "team-a"
+        "team-a",
+        "team-b",
+        "team-c"
       ],
       "role": "admin",
       "pv": 2
     },
-    "member": {
-      "name": "成员",
-      "salt": "b83bac861e8969e3d753377fc47ce780",
-      "hash": "61ae6c9f70386d43222ffc7f21f12f2f3be5bc85bcbfb9b805331d4e499ec926",
+    "bob": {
+      "name": "鲍勃",
+      "salt": "8313e839b52e66fb0c38657f55127bb4",
+      "hash": "c76e1c5bc13b8f1c58c35c785262986da95f0548743cff8db01c3a35beb1d24a",
       "teams": [
         "team-a"
       ],
+      "role": "member",
+      "pv": 2
+    },
+    "carol": {
+      "name": "卡罗尔",
+      "salt": "8f115ecbeb1b99551ff870c9a92d73f5",
+      "hash": "946a04eac572869357659b75913d1bb0e3772692c1ca604cc218f07ca6cccd3f",
+      "teams": [
+        "team-b"
+      ],
+      "role": "member",
+      "pv": 2
+    },
+    "dave": {
+      "name": "戴夫（无团队）",
+      "salt": "9b4f0cc944044f928f97eeae9c153891",
+      "hash": "6d8f293a7bae9cdbb69250b0013495ad25115dc5e7d296ecad891f0a5ae4eeef",
+      "teams": [],
       "role": "member",
       "pv": 2
     }

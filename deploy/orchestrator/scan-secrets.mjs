@@ -83,7 +83,7 @@ const RULES = [
 
 /** 整个文件跳过：要么是夹具，要么是示例，要么是文档占位符。 */
 const SKIP_PATHS = [
-	/deploy\/auth\/accounts\.example\.json$/, // 演示账号的 scrypt 哈希，口令公开为 demo1234
+	/deploy\/auth\/accounts\.example\.json$/, // 演示账号的 scrypt 哈希，口令公开为 dsh-demo-1234
 	/deploy\/orchestrator\/verify-.*\.mjs$/,  // 自测夹具
 	/^docs\//,                                 // 文档里全是 <占位符>
 	/^README/,                                 // README 里有命令示例

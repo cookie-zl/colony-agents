@@ -177,7 +177,7 @@ dsh 本身是单人视角的：一个进程、一份会话、一个 `$DSH_HOME`�
 ```bash
 git clone https://github.com/cookie-zl/colony-agents.git && cd colony-agents
 
-make seed      # 生成 accounts.json / nodes.json / .env（演示账号 admin / demo1234）
+make seed      # 生成 accounts.json / nodes.json / .env（演示账号 alice / bob / carol / dave，口令 dsh-demo-1234）
 make up        # 构建镜像并起 team-a → http://team-a.localhost:8080/
 ```
 

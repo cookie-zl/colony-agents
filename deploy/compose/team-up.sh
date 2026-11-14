@@ -305,7 +305,9 @@ up)
 
 	echo ""
 	echo "入口:   http://$team.localhost:$port/"
-	echo "账号:   alice / bob / carol / dave   密码 dsh-demo-1234"
+	# 账号从 accounts.json 读：写死过一次，结果和 make seed 生成的对不上，新人照着登不进
+	users=$(node -e "try{const d=require(process.argv[1]);process.stdout.write(Object.keys(d.users||{}).join(' / '))}catch(e){}" "$AUTH_DIR/accounts.json" 2>/dev/null || true)
+	echo "账号:   ${users:-见 deploy/auth/accounts.json}   密码 dsh-demo-1234（示例默认，改过以你的为准）"
 	echo "门户:   http://$team.localhost:$port/__auth/home"
 	;;
 sync)

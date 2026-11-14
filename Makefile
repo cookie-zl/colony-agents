@@ -37,7 +37,7 @@ help: ## 列出所有目标
 # 运行时文件（账号库、节点清单）不入库，首次运行从 .example 复制一份，已有就不动。
 .PHONY: seed
 seed: ## 首次运行：从 .example 生成 accounts.json / nodes.json / .env（已存在则跳过）
-	@[ -f deploy/auth/accounts.json ] || ( cp deploy/auth/accounts.example.json deploy/auth/accounts.json && echo "已生成 deploy/auth/accounts.json（演示账号 admin / demo1234）" )
+	@[ -f deploy/auth/accounts.json ] || ( cp deploy/auth/accounts.example.json deploy/auth/accounts.json && echo "已生成 deploy/auth/accounts.json（演示账号 alice / bob / carol / dave，口令 dsh-demo-1234）" )
 	@[ -f deploy/orchestrator/nodes.json ] || ( cp deploy/orchestrator/nodes.example.json deploy/orchestrator/nodes.json && echo "已生成 deploy/orchestrator/nodes.json（按本机 CPU/内存改预算）" )
 	@[ -f deploy/compose/.env ] || ( cp deploy/compose/.env.example deploy/compose/.env && echo "已生成 deploy/compose/.env（模型 Key 可留空，默认免费车道）" )
 

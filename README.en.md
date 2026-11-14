@@ -152,7 +152,7 @@ Requires Docker and `make`.
 
 ```bash
 git clone https://github.com/cookie-zl/colony-agents.git && cd colony-agents
-make seed      # generate accounts.json / nodes.json / .env (demo login admin / demo1234)
+make seed      # generate accounts.json / nodes.json / .env (demo logins alice / bob / carol / dave, password dsh-demo-1234)
 make up        # build image, start team-a → http://team-a.localhost:8080/
 ```
 
