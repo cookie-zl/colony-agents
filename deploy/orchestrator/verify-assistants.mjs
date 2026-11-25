@@ -441,6 +441,18 @@ console.log('\n== 12. 一个群一个对话（唯一键 = 机器人 + 群）==')
 	const t1 = findThread(db, a4, 'cid-g1')
 	check('重置线程只断开会话、历史与线程都留着', resetThread(db, t1.id) && findThread(db, a4, 'cid-g1').session_id === null && listThreads(db, a4).length >= 2)
 	check('重置后同群下一条消息会新建会话', (await multiDispatcher.handle(inGroup('cid-g1', 'g1-2', '重新开始')))?.threadId === t1.id && Boolean(findThread(db, a4, 'cid-g1').session_id))
+
+	// 面板要在助理行里直接列群，所以列表接口必须带逐群摘要，不能只给个数
+	const listed = listAssistants(db, 'team-a').find((r) => r.id === a4)
+	check(
+		'列表带逐群摘要（面板要直接摊开群）',
+		Array.isArray(listed?.threadList) && listed.threadList.length >= 2 && listed.threads === listed.threadList.length,
+		JSON.stringify(listed?.threadList),
+	)
+	check(
+		'摘要里有群 id / 轮数 / 是否已建会话',
+		listed.threadList.every((t) => 'conversation_id' in t && 'message_count' in t && 'has_session' in t && 'last_active_at' in t),
+	)
 }
 
 console.log('\n== 13. 管理接口：群线程 / 按群过滤 / 重置 ==')

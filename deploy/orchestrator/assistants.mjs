@@ -161,7 +161,11 @@ export const CREDENTIAL_KEYS = {
 /**
  * 列出某团队的助理。不返回任何凭据，只回「配没配」。
  *
- * 额外带两个列表页要用的聚合：`channels`（群白名单）与 `threads`（已经聊起来的群数）。
+ * 额外带三个列表页要用的字段：`channels`（群白名单）、`threads`（已经聊起来的群数）、
+ * `threadList`（每个群的摘要：id / 群 id / 群名 / 轮数 / 最近活跃）。
+ * 面板要在助理行里直接摊开「这个机器人服务了哪几个群」，所以摘要一次带出来，
+ * 不让它逐个助理再打一次接口。
+ *
  * `conversation_id` 这个字段是为了兼容老面板而保留的「首个白名单群」——
  * 一个机器人现在可以服务多个群，别再用它判断「绑定关系」。
  *
@@ -171,7 +175,28 @@ export const CREDENTIAL_KEYS = {
  */
 export function listAssistants(db, team) {
 	const probe = db.prepare('SELECT 1 FROM team_secrets WHERE team_id = ? AND scope = ? AND key = ?')
-	const threadCount = db.prepare('SELECT COUNT(*) AS n FROM assistant_threads WHERE assistant_id = ?')
+	// 一次查完整个团队的线程再按助理分组：助理数 × 群数通常几十行，比每条助理各查一次干净
+	const threadsByAssistant = new Map()
+	for (const row of db
+		.prepare(
+			`SELECT t.id, t.assistant_id, t.conversation_id, t.title, t.session_id, t.last_active_at,
+			        (SELECT COUNT(*) FROM assistant_messages m WHERE m.thread_id = t.id) AS message_count
+			   FROM assistant_threads t
+			  WHERE t.team_id = ?
+			  ORDER BY t.last_active_at DESC`,
+		)
+		.all(team)) {
+		const list = threadsByAssistant.get(row.assistant_id) ?? []
+		list.push({
+			id: row.id,
+			conversation_id: row.conversation_id,
+			title: row.title,
+			has_session: Boolean(row.session_id),
+			message_count: Number(row.message_count),
+			last_active_at: row.last_active_at,
+		})
+		threadsByAssistant.set(row.assistant_id, list)
+	}
 	return db
 		.prepare('SELECT * FROM assistants WHERE team_id = ? ORDER BY created_at DESC')
 		.all(team)
@@ -183,12 +208,14 @@ export function listAssistants(db, team) {
 				credentials[field] = Boolean(probe.get(team, scope, key))
 			}
 			const channels = listChannels(db, row.id)
+			const threadList = threadsByAssistant.get(row.id) ?? []
 			return {
 				...row,
 				credentials,
 				hasOutbound: credentials.outboundWebhook,
 				channels,
-				threads: Number(threadCount.get(row.id)?.n ?? 0),
+				threads: threadList.length,
+				threadList,
 				conversation_id: channels[0]?.conversation_id ?? null,
 			}
 		})
