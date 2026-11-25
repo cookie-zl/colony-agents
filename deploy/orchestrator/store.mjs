@@ -168,6 +168,17 @@ export function saveNodes(data) {
  */
 export function snapshot(reason = 'auto') {
 	mkdirSync(BACKUP_DIR, { recursive: true })
+	// 先清后写：顺便把目录现状记进 snapshotStats（清理有 10 分钟节流，连拍不会重复扫描）
+	pruneSnapshots()
+	// 清理长期失败时（比如容器里的删除策略把 unlink 拦了），目录会只长不消。
+	// 此时继续每十分钟写七份，等于亲手把事件循环拖死——宁可少一份备份，也不能让控制面变砖。
+	if (snapshotStats.max > SNAPSHOT_GROUP_LIMIT) {
+		console.error(
+			`console: 跳过本次快照（${reason}）：单类快照已有 ${snapshotStats.max} 份，清理没跟上。` +
+				`手工清一次 ${BACKUP_DIR} 就能恢复。`,
+		)
+		return []
+	}
 	const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
 	const written = []
 	for (const [name, file] of [
@@ -206,26 +217,48 @@ export function snapshot(reason = 'auto') {
 	}
 
 	console.log(`console: 已快照（${reason}）→ ${BACKUP_DIR}`)
-	pruneSnapshots()
 	return written
 }
 
-/** 上一次清理的时间：快照每小时一次，每次全量 readdir + stat 几千个文件是纯浪费。 */
+/**
+ * 文件名里的时间戳 → 毫秒（`state-2026-11-25T15-39-12.json`）。
+ *
+ * 排序只要求单调，不要求绝对时间准确，所以按 UTC 解析本地时间串是可以的：
+ * 时区偏移对所有文件名相同，不改变相对顺序。关键收益是**不再对每个文件 statSync**——
+ * 目录里几千个文件时，几千次同步 stat 足以把事件循环按住几十秒。
+ *
+ * @param {string} name 文件名
+ * @returns {number} 可比较的时间戳；解析不出来返回 0
+ */
+function snapshotStamp(name) {
+	const m = String(name).match(/(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})/)
+	if (!m) return 0
+	return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6]))
+}
+
+/** 上一次清理时看到的「单类快照最多有多少份」，用来判断目录是不是已经失控。 */
+let snapshotStats = { total: 0, max: 0 }
+
+/** 单类快照超过这个数，说明清理一直没成功；此时宁可少一份备份，也不能把服务拖死。 */
+const SNAPSHOT_GROUP_LIMIT = 100
+
+/** 上一次清理的时间：快照每小时一次，每次全量 readdir 几千个文件是纯浪费。 */
 let lastPrune = 0
 
 /**
  * 每类快照只留最近 N 份，别让备份自己把磁盘吃满。
  *
- * 两处防卡死（实测踩过：目录里 2914 个文件时，这个函数把事件循环按住几十秒，
- * 控制面 `curl /health` 连续 45 秒无响应）：
+ * 三处防卡死（实测踩过：目录里 2914 个文件时，这个函数把事件循环按住几十秒，
+ * 控制面 `curl /health` 连续 45 秒无响应；后来涨到 7000 多个时进程直接不再响应）：
  *   1. 十分钟内只跑一次——快照频率远高于「需要清理」的频率；
- *   2. 单次最多删 20 个，删不完留到下一轮；失败聚合成一条日志。
+ *   2. 排序用文件名里的时间戳，不做 statSync（几千次同步 stat 是主要开销）；
+ *   3. 单次最多删 limit 个，删不完留到下一轮；失败聚合成一条日志。
  *      逐条 console.error 同步写终端，两千条就能顶住整个进程。
  *
  * @param {number} [keep] 每类保留份数
  * @param {number} [limit] 单次删除上限
  */
-export function pruneSnapshots(keep = 24, limit = 20) {
+export function pruneSnapshots(keep = 24, limit = 200) {
 	const now = Date.now()
 	if (now - lastPrune < 10 * 60_000) return
 	lastPrune = now
@@ -235,21 +268,21 @@ export function pruneSnapshots(keep = 24, limit = 20) {
 		const match = name.match(/^(accounts|state|nodes|packages|shares|oplog|db)-(.+)\.(json|db)$/)
 		if (!match) continue
 		if (!groups.has(match[1])) groups.set(match[1], [])
-		try {
-			groups.get(match[1]).push({ name, at: statSync(join(BACKUP_DIR, name)).mtimeMs })
-		} catch {
-			/* 刚被别的进程删掉：不参与本轮排序 */
-		}
+		groups.get(match[1]).push(name)
 	}
 	let removed = 0
 	let failed = 0
 	let firstError = ''
+	let total = 0
+	let max = 0
 	for (const list of groups.values()) {
-		list.sort((a, b) => b.at - a.at)
+		total += list.length
+		max = Math.max(max, list.length)
+		list.sort((a, b) => snapshotStamp(b) - snapshotStamp(a))
 		for (const stale of list.slice(keep)) {
 			if (removed >= limit) break
 			try {
-				unlinkSync(join(BACKUP_DIR, stale.name))
+				unlinkSync(join(BACKUP_DIR, stale))
 				removed += 1
 			} catch (error) {
 				failed += 1
@@ -257,7 +290,8 @@ export function pruneSnapshots(keep = 24, limit = 20) {
 			}
 		}
 	}
-	if (removed) console.log(`console: 清理旧快照 ${removed} 个`)
+	snapshotStats = { total, max }
+	if (removed) console.log(`console: 清理旧快照 ${removed} 个（目录共 ${total} 个）`)
 	// 删除被策略拦住时不要安静：下一轮还会再试，但运维要知道目录正在长大
 	if (failed) console.error(`console: 清理旧快照失败 ${failed} 个（首个：${firstError}）`)
 }

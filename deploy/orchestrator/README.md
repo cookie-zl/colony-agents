@@ -10,6 +10,13 @@ make console          # 前台运行，Ctrl-C 停
 - 鉴权：请求头 `X-Console-Token` = 本目录 `console-token`（首次由 `team-up.sh` 生成，勿提交）
 - 创建动作直接复用 `deploy/compose/team-up.sh up <team> <port>`，与手动起实例走同一条路径
 
+> **别在会注入 `NODE_OPTIONS` 的环境里起它。** 某些编辑器/Agent 工具会通过
+> `NODE_OPTIONS=--require ...shim` 把 `fs.unlink` 换成需要确认的 safe-delete，
+> 控制面的快照清理会被静默拦住：每 10 分钟写 7 份快照、一份也删不掉，
+> 十天后目录涨到七千多个文件，`readdir` 把事件循环拖死 —— 表现为端口还在
+> `LISTEN` 但所有请求 `connection reset`。真遇上了：`env -u NODE_OPTIONS node console.mjs`
+> 重启，并把 `backups/` 清到每类 24 份。
+
 | 接口 | 说明 |
 | --- | --- |
 | `POST /teams` | `{id,name,desc,owner,cpus?,memory?}` → 校验节点预算、分配端口、建容器、等健康 → `{team:{id,url,node,quota}}` |
